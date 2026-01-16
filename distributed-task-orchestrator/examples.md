@@ -10,7 +10,7 @@
 ### Phase 1️⃣ Task Analysis and Decomposition
 
 ```markdown
-# .orchestrator/master_plan.md
+# .agentdocs/runtime/260112-code-analysis/master_plan.md
 
 ## Original Request
 > Analyze TypeScript project for code quality, security vulnerabilities, and performance issues
@@ -55,7 +55,7 @@
 | T-05 | Agent-05 | ⏸️ Waiting | - | - |
 ```
 
-**Agent-01 Task File** (`.orchestrator/agent_tasks/agent-01.md`):
+**Agent-01 Task File** (`.agentdocs/runtime/260112-code-analysis/agent_tasks/agent-01.md`):
 ```markdown
 # Agent-01 Task: Code Scan
 
@@ -172,7 +172,7 @@ Scan the project's src/ directory, read all TypeScript files (.ts, .tsx)
 ### Phase 4️⃣ Result Aggregation
 
 ```markdown
-# .orchestrator/final_output.md
+# .agentdocs/runtime/260112-code-analysis/final_output.md
 
 ## 📊 Code Analysis Report
 
@@ -406,7 +406,7 @@ Write-Host "  ✅ Decomposition complete: $($tasks.tasks.Count) tasks" -Foregrou
 Write-Host ""
 Write-Host "🤖 Phase 2: Assigning agents..." -ForegroundColor Yellow
 
-$orchestratorDir = ".orchestrator"
+$orchestratorDir = ".agentdocs"
 New-Item -ItemType Directory -Path "$orchestratorDir/agent_tasks" -Force | Out-Null
 New-Item -ItemType Directory -Path "$orchestratorDir/results" -Force | Out-Null
 

@@ -50,12 +50,15 @@ claude -p "Complete task based on the following context: $context"
 ### Method 2: Read Task from File
 
 ```powershell
-# Read task file and execute
-$task = Get-Content ".orchestrator/agent_tasks/agent-01.md" -Raw
+# Read task file and execute (with task-specific runtime path)
+$taskId = "YYMMDD-task-name"
+$runtimePath = ".agentdocs/runtime/$taskId"
+
+$task = Get-Content "$runtimePath/agent_tasks/agent-01.md" -Raw
 claude -p $task
 
 # Save result to file
-claude -p $task | Out-File ".orchestrator/results/agent-01-result.md" -Encoding UTF8
+claude -p $task | Out-File "$runtimePath/results/agent-01-result.md" -Encoding UTF8
 ```
 
 ### Method 3: Using Pipes
@@ -75,31 +78,34 @@ Get-Content "data.json" | claude -p "Analyze this JSON data" | Out-File "analysi
 ### Windows PowerShell Jobs
 
 ```powershell
-# Launch multiple Agents in parallel
-$taskFiles = Get-ChildItem ".orchestrator/agent_tasks/*.md"
+# Launch multiple Agents in parallel (with task-specific runtime path)
+$taskId = "YYMMDD-task-name"
+$runtimePath = ".agentdocs/runtime/$taskId"
+
+$taskFiles = Get-ChildItem "$runtimePath/agent_tasks/*.md"
 
 # Create background jobs
 $jobs = foreach ($file in $taskFiles) {
     $agentId = $file.BaseName
-    
+
     Start-Job -Name $agentId -ScriptBlock {
         param($taskPath, $resultPath)
-        
+
         # Read task
         $task = Get-Content $taskPath -Raw
-        
+
         # Execute Claude CLI
         $result = claude -p $task 2>&1
-        
+
         # Save result
         $result | Out-File $resultPath -Encoding UTF8
-        
+
         return @{
             Agent = $using:agentId
             Success = $LASTEXITCODE -eq 0
             Output = $result
         }
-    } -ArgumentList $file.FullName, ".orchestrator/results/$agentId-result.md"
+    } -ArgumentList $file.FullName, "$runtimePath/results/$agentId-result.md"
 }
 
 # Display real-time progress
@@ -132,8 +138,10 @@ $jobs | Remove-Job
 # Create Runspace Pool for efficient parallelism
 function Invoke-ParallelAgents {
     param(
-        [string]$TaskDir = ".orchestrator/agent_tasks",
-        [string]$ResultDir = ".orchestrator/results",
+        [Parameter(Mandatory=$true)]
+        [string]$TaskId,
+        [string]$TaskDir = ".agentdocs/runtime/$TaskId/agent_tasks",
+        [string]$ResultDir = ".agentdocs/runtime/$TaskId/results",
         [int]$MaxConcurrency = 4
     )
     
@@ -216,7 +224,11 @@ $results | Format-Table Agent, Success, Duration
 ### 1. Execution Scheduling with Dependencies
 
 ```powershell
-# Define task dependency relationships
+# Define task dependency relationships (with task-specific runtime path)
+$taskId = "YYMMDD-task-name"
+$taskDir = ".agentdocs/runtime/$taskId/agent_tasks"
+$resultDir = ".agentdocs/runtime/$taskId/results"
+
 $taskGraph = @{
     "T-01" = @{ Agent = "Agent-01"; Deps = @() }
     "T-02" = @{ Agent = "Agent-02"; Deps = @("T-01") }
@@ -225,8 +237,6 @@ $taskGraph = @{
 }
 
 $completed = @{}
-$taskDir = ".orchestrator/agent_tasks"
-$resultDir = ".orchestrator/results"
 
 function Get-ReadyTasks {
     param($graph, $completed)
@@ -387,11 +397,14 @@ claude -p $context
 ### Method 2: Reference Files
 
 ```powershell
-# Merge multiple context files
+# Merge multiple context files (with task-specific runtime path)
+$taskId = "YYMMDD-task-name"
+$runtimePath = ".agentdocs/runtime/$taskId"
+
 $context = @(
     (Get-Content "project-info.md" -Raw),
     (Get-Content "coding-standards.md" -Raw),
-    (Get-Content ".orchestrator/agent_tasks/agent-01.md" -Raw)
+    (Get-Content "$runtimePath/agent_tasks/agent-01.md" -Raw)
 ) -join "`n`n---`n`n"
 
 claude -p $context
@@ -400,9 +413,12 @@ claude -p $context
 ### Method 3: Dynamic Injection of Previous Results
 
 ```powershell
-# Agent-02 depends on Agent-01's result
-$agent01Result = Get-Content ".orchestrator/results/agent-01-result.md" -Raw
-$agent02Task = Get-Content ".orchestrator/agent_tasks/agent-02.md" -Raw
+# Agent-02 depends on Agent-01's result (with task-specific runtime path)
+$taskId = "YYMMDD-task-name"
+$runtimePath = ".agentdocs/runtime/$taskId"
+
+$agent01Result = Get-Content "$runtimePath/results/agent-01-result.md" -Raw
+$agent02Task = Get-Content "$runtimePath/agent_tasks/agent-02.md" -Raw
 
 $fullPrompt = @"
 ## Previous Task Result (from Agent-01)
@@ -416,7 +432,7 @@ $agent01Result
 $agent02Task
 "@
 
-claude -p $fullPrompt | Out-File ".orchestrator/results/agent-02-result.md"
+claude -p $fullPrompt | Out-File "$runtimePath/results/agent-02-result.md"
 ```
 
 ---
@@ -428,8 +444,10 @@ claude -p $fullPrompt | Out-File ".orchestrator/results/agent-02-result.md"
 ```powershell
 function Merge-AgentResults {
     param(
-        [string]$ResultDir = ".orchestrator/results",
-        [string]$OutputFile = ".orchestrator/final_output.md"
+        [Parameter(Mandatory=$true)]
+        [string]$TaskId,
+        [string]$ResultDir = ".agentdocs/runtime/$TaskId/results",
+        [string]$OutputFile = ".agentdocs/runtime/$TaskId/final_output.md"
     )
     
     # Collect all results
@@ -488,7 +506,9 @@ function Invoke-AgentSafe {
         [string]$Agent,
         [string]$TaskFile,
         [string]$ResultFile,
-        [string]$ErrorLog = ".orchestrator/error.log"
+        [Parameter(Mandatory=$true)]
+        [string]$TaskId,
+        [string]$ErrorLog = ".agentdocs/runtime/$TaskId/error.log"
     )
     
     try {
@@ -544,7 +564,7 @@ function Invoke-AgentWithFallback {
 # Complete distributed code review workflow
 
 # 1. Initialize
-$orchestratorDir = ".orchestrator"
+$orchestratorDir = ".agentdocs"
 New-Item -ItemType Directory -Path "$orchestratorDir/agent_tasks" -Force | Out-Null
 New-Item -ItemType Directory -Path "$orchestratorDir/results" -Force | Out-Null
 

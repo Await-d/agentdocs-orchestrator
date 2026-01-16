@@ -15,7 +15,7 @@
 │ │ 1.3 Break down into atomic tasks                           │   │
 │ │ 1.4 Define Input/Output for each task                      │   │
 │ └───────────────────────────────────────────────────────────┘   │
-│ 📄 Output: .orchestrator/master_plan.md                          │
+│ 📄 Output: .agentdocs/runtime/<task-id>/master_plan.md                   │
 └─────────────────────────────────┬───────────────────────────────┘
                                   ▼
 ┌─────────────────────────────────────────────────────────────────┐
@@ -26,7 +26,7 @@
 │ │ 2.3 Generate Agent task files                              │   │
 │ │ 2.4 Initialize status as "Pending"                         │   │
 │ └───────────────────────────────────────────────────────────┘   │
-│ 📄 Output: .orchestrator/agent_tasks/agent-XX.md                 │
+│ 📄 Output: .agentdocs/runtime/<task-id>/agent_tasks/agent-XX.md          │
 └─────────────────────────────────┬───────────────────────────────┘
                                   ▼
 ┌─────────────────────────────────────────────────────────────────┐
@@ -38,7 +38,7 @@
 │ │ 3.4 Execute subsequent tasks after dependencies complete   │   │
 │ │ 3.5 Record execution logs                                  │   │
 │ └───────────────────────────────────────────────────────────┘   │
-│ 📄 Output: .orchestrator/results/agent-XX-result.md              │
+│ 📄 Output: .agentdocs/runtime/<task-id>/results/agent-XX-result.md       │
 └─────────────────────────────────┬───────────────────────────────┘
                                   ▼
 ┌─────────────────────────────────────────────────────────────────┐
@@ -49,7 +49,7 @@
 │ │ 4.3 Merge results according to dependency order            │   │
 │ │ 4.4 Generate final output                                  │   │
 │ └───────────────────────────────────────────────────────────┘   │
-│ 📄 Output: .orchestrator/final_output.md                         │
+│ 📄 Output: .agentdocs/runtime/<task-id>/final_output.md                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -199,7 +199,7 @@ def schedule_tasks(tasks, dependencies):
 │ 📤 Output: 
 │    - File count: 15
 │    - Total lines: 2,847
-│    - Saved to: .orchestrator/results/agent-01-result.md
+│    - Saved to: .agentdocs/runtime/<task-id>/results/agent-01-result.md
 │ ⏱️ Duration: 1.2s
 │ ✅ Status: Completed
 └──────────────────────────────────────────────────────────────────
@@ -223,8 +223,11 @@ def schedule_tasks(tasks, dependencies):
 **Windows PowerShell Parallel Execution:**
 
 ```powershell
-# Method 1: Using Jobs
-$taskFiles = Get-ChildItem ".orchestrator/agent_tasks/*.md"
+# Method 1: Using Jobs (with task-specific runtime path)
+$taskId = "YYMMDD-task-name"
+$runtimePath = ".agentdocs/runtime/$taskId"
+
+$taskFiles = Get-ChildItem "$runtimePath/agent_tasks/*.md"
 $jobs = foreach ($file in $taskFiles) {
     $agentId = $file.BaseName
     Start-Job -Name $agentId -ScriptBlock {
@@ -232,7 +235,7 @@ $jobs = foreach ($file in $taskFiles) {
         $task = Get-Content $taskPath -Raw
         $result = claude -p $task
         $result | Out-File $resultPath -Encoding UTF8
-    } -ArgumentList $file.FullName, ".orchestrator/results/$agentId-result.md"
+    } -ArgumentList $file.FullName, "$runtimePath/results/$agentId-result.md"
 }
 
 # Wait for all to complete
@@ -251,11 +254,14 @@ $jobs | Remove-Job
 **Method 2: Using Runspace Pool (More Efficient)**
 
 ```powershell
-# Create Runspace Pool
+# Create Runspace Pool (with task-specific runtime path)
+$taskId = "YYMMDD-task-name"
+$runtimePath = ".agentdocs/runtime/$taskId"
+
 $pool = [RunspaceFactory]::CreateRunspacePool(1, 5)  # Max 5 parallel
 $pool.Open()
 
-$tasks = Get-ChildItem ".orchestrator/agent_tasks/*.md"
+$tasks = Get-ChildItem "$runtimePath/agent_tasks/*.md"
 $runspaces = @()
 
 foreach ($task in $tasks) {
@@ -266,7 +272,7 @@ foreach ($task in $tasks) {
         $content = Get-Content $taskPath -Raw
         claude -p $content
     }).AddArgument($task.FullName) | Out-Null
-    
+
     $runspaces += [PSCustomObject]@{
         PowerShell = $ps
         Handle = $ps.BeginInvoke()
@@ -277,7 +283,7 @@ foreach ($task in $tasks) {
 # Wait and collect results
 foreach ($rs in $runspaces) {
     $result = $rs.PowerShell.EndInvoke($rs.Handle)
-    $result | Out-File ".orchestrator/results/$($rs.Task)-result.md"
+    $result | Out-File "$runtimePath/results/$($rs.Task)-result.md"
     $rs.PowerShell.Dispose()
 }
 
@@ -335,8 +341,11 @@ $pool.Dispose()
 
 **Strategy C: Intelligent Merge (Requires AI Processing)**
 ```powershell
-# Use Claude to merge multiple results
-$results = Get-Content ".orchestrator/results/*.md" -Raw
+# Use Claude to merge multiple results (with task-specific runtime path)
+$taskId = "YYMMDD-task-name"
+$runtimePath = ".agentdocs/runtime/$taskId"
+
+$results = Get-Content "$runtimePath/results/*.md" -Raw
 $mergePrompt = @"
 Please merge the following multiple subtask results into a complete report:
 
@@ -349,7 +358,7 @@ Requirements:
 4. Generate executive summary
 "@
 
-claude -p $mergePrompt | Out-File ".orchestrator/final_output.md"
+claude -p $mergePrompt | Out-File "$runtimePath/final_output.md"
 ```
 
 ## State Persistence Specification
@@ -377,5 +386,5 @@ Every state change must update `master_plan.md`:
 - All parallel tasks completed
 
 ### [2025-01-12 14:30:50] Result Aggregation Completed
-- Final output: .orchestrator/final_output.md
+- Final output: .agentdocs/runtime/<task-id>/final_output.md
 ```

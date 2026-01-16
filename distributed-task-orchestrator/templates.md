@@ -83,7 +83,7 @@
 
 ## 📦 Final Output
 
-**Output Location**: `.orchestrator/final_output.md`
+**Output Location**: `.agentdocs/runtime/<task-id>/final_output.md`
 **Status**: Pending generation
 ```
 
@@ -108,7 +108,7 @@
 | Parameter | Type | Source | Value/Description |
 |-----------|------|--------|-------------------|
 | param1 | string | User input | [Value] |
-| param2 | file | T-01 output | .orchestrator/results/agent-01-result.md |
+| param2 | file | T-01 output | .agentdocs/runtime/<task-id>/results/agent-01-result.md |
 
 ### Context Information
 [Any background information helpful for completing the task]
@@ -137,7 +137,7 @@
 ```
 
 ### Output Location
-`.orchestrator/results/agent-XX-result.md`
+`.agentdocs/runtime/<task-id>/results/agent-XX-result.md`
 
 ---
 
@@ -316,13 +316,15 @@ T-04:                         █████ (0.9s)
 
 ```powershell
 # Distributed Task Orchestration - Agent Launch Script
-# Usage: .\run-agents.ps1 [-Parallel] [-MaxJobs 5]
+# Usage: .\run-agents.ps1 -TaskId "YYMMDD-task-name" [-Parallel] [-MaxJobs 5]
 
 param(
+    [Parameter(Mandatory=$true)]
+    [string]$TaskId,
     [switch]$Parallel = $false,
     [int]$MaxJobs = 4,
-    [string]$TaskDir = ".orchestrator/agent_tasks",
-    [string]$ResultDir = ".orchestrator/results"
+    [string]$TaskDir = ".agentdocs/runtime/$TaskId/agent_tasks",
+    [string]$ResultDir = ".agentdocs/runtime/$TaskId/results"
 )
 
 # Ensure result directory exists
@@ -451,19 +453,27 @@ Write-Host "Results saved to: $ResultDir" -ForegroundColor Yellow
 #!/bin/bash
 
 # Distributed Task Orchestration - Agent Launch Script
-# Usage: ./run-agents.sh [-p] [-j 4]
+# Usage: ./run-agents.sh -t "YYMMDD-task-name" [-p] [-j 4]
 
 PARALLEL=false
 MAX_JOBS=4
-TASK_DIR=".orchestrator/agent_tasks"
-RESULT_DIR=".orchestrator/results"
+TASK_ID=""
 
-while getopts "pj:" opt; do
+while getopts "t:pj:" opt; do
     case $opt in
+        t) TASK_ID=$OPTARG ;;
         p) PARALLEL=true ;;
         j) MAX_JOBS=$OPTARG ;;
     esac
 done
+
+if [ -z "$TASK_ID" ]; then
+    echo "Error: Task ID is required. Use -t <task-id>"
+    exit 1
+fi
+
+TASK_DIR=".agentdocs/runtime/$TASK_ID/agent_tasks"
+RESULT_DIR=".agentdocs/runtime/$TASK_ID/results"
 
 # Ensure result directory exists
 mkdir -p "$RESULT_DIR"
@@ -472,6 +482,7 @@ echo "════════════════════════�
 echo "       🚀 Distributed Task Orchestration - Agent Executor"
 echo "═══════════════════════════════════════════════════"
 echo ""
+echo "Task ID: $TASK_ID"
 
 task_count=$(ls -1 "$TASK_DIR"/*.md 2>/dev/null | wc -l)
 echo "Found $task_count tasks"
@@ -482,9 +493,9 @@ run_agent() {
     local task_file=$1
     local agent_id=$(basename "$task_file" .md)
     local result_file="$RESULT_DIR/${agent_id}-result.md"
-    
+
     local start_time=$(date +%s)
-    
+
     if claude -p "$(cat "$task_file")" > "$result_file" 2>&1; then
         local end_time=$(date +%s)
         local duration=$((end_time - start_time))
@@ -517,17 +528,23 @@ echo "Results saved to: $RESULT_DIR"
 
 ```powershell
 # Initialize distributed task orchestration directory structure
+# Usage: .\init-orchestrator.ps1 -TaskId "YYMMDD-task-name"
 param(
-    [string]$ProjectName = "task"
+    [Parameter(Mandatory=$true)]
+    [string]$TaskId
 )
 
-$baseDir = ".orchestrator"
+$baseDir = ".agentdocs"
+$runtimeDir = "$baseDir/runtime/$TaskId"
 
 # Create directory structure
 $dirs = @(
     $baseDir,
-    "$baseDir/agent_tasks",
-    "$baseDir/results"
+    "$baseDir/workflow",
+    "$baseDir/workflow/done",
+    $runtimeDir,
+    "$runtimeDir/agent_tasks",
+    "$runtimeDir/results"
 )
 
 foreach ($dir in $dirs) {
@@ -539,7 +556,10 @@ foreach ($dir in $dirs) {
 
 # Create master plan file
 $masterPlan = @"
-# 🎯 Distributed Task Plan: $ProjectName
+# 🎯 Distributed Task Plan: $TaskId
+
+## Workflow Reference
+\`workflow/$TaskId.md\`
 
 ## Original Request
 > [Fill in user request here]
@@ -572,10 +592,10 @@ $masterPlan = @"
 - Task plan created
 "@
 
-$masterPlan | Out-File "$baseDir/master_plan.md" -Encoding UTF8
-Write-Host "✅ Created master plan: $baseDir/master_plan.md" -ForegroundColor Green
+$masterPlan | Out-File "$runtimeDir/master_plan.md" -Encoding UTF8
+Write-Host "✅ Created master plan: $runtimeDir/master_plan.md" -ForegroundColor Green
 
 Write-Host ""
 Write-Host "🎉 Initialization complete!" -ForegroundColor Cyan
-Write-Host "Next step: Edit $baseDir/master_plan.md to define tasks" -ForegroundColor Yellow
+Write-Host "Next step: Edit $runtimeDir/master_plan.md to define tasks" -ForegroundColor Yellow
 ```
