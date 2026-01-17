@@ -388,3 +388,78 @@ Every state change must update `master_plan.md`:
 ### [2025-01-12 14:30:50] Result Aggregation Completed
 - Final output: .agentdocs/runtime/<task-id>/final_output.md
 ```
+
+## Phase 5: Status Sync and Cleanup (Detailed)
+
+### 5.1 Update Workflow Document
+
+After each task completion, synchronize status to workflow document:
+
+```markdown
+# .agentdocs/workflow/YYMMDD-task-name.md
+
+## Implementation Plan
+
+### Phase 1: Initial Setup
+- [x] T-01: Setup project structure ✅
+- [x] T-02: Configure dependencies ✅
+
+### Phase 2: Core Implementation
+- [ ] T-03: Implement feature X
+- [ ] T-04: Add tests
+```
+
+### 5.2 Check Task Completion
+
+When all TODOs in workflow document are marked as done:
+
+1. **Move to archive**:
+   ```bash
+   mv .agentdocs/workflow/YYMMDD-task-name.md .agentdocs/workflow/done/
+   ```
+
+2. **Update index.md**:
+   - Remove from "Current Task Documents" section
+   - Optionally add to "Completed Tasks" section with brief summary
+
+### 5.3 Cleanup Task Runtime
+
+**Critical**: Only clean up the specific task's runtime directory:
+
+```bash
+# Clean up this task's runtime
+rm -rf .agentdocs/runtime/YYMMDD-task-name/
+
+# Do NOT clean up other concurrent tasks
+# Each task has isolated runtime
+```
+
+### 5.4 Documentation Output Restrictions
+
+**Important**: Maintain minimal documentation footprint:
+
+- ✅ **DO**: Consolidate all outputs in `runtime/<task-id>/final_output.md`
+- ✅ **DO**: Update workflow document TODOs
+- ✅ **DO**: Clean up runtime after task completion
+- ❌ **DO NOT**: Create additional summary documents in project root
+- ❌ **DO NOT**: Generate separate README or documentation files
+- ❌ **DO NOT**: Create feature summaries unless explicitly requested
+- ❌ **DO NOT**: Leave temporary files or logs in project directories
+
+**Rationale**:
+- Workflow document captures planning and decisions (persistent)
+- Runtime final_output.md captures execution results (temporary)
+- Additional documentation creates clutter and confusion
+- Keep the project clean and focused on actual code/content
+
+### 5.5 Final Checklist
+
+Before considering task complete:
+
+- [ ] All workflow TODOs marked as done
+- [ ] Workflow document moved to `done/` directory
+- [ ] Index.md updated (removed from current tasks)
+- [ ] Task runtime directory cleaned up
+- [ ] No additional documentation files created
+- [ ] Project directory remains clean
+```

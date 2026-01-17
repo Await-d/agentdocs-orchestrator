@@ -2,6 +2,25 @@
 
 ## Core Concepts
 
+### 0. Design Principles
+
+**Minimal Documentation Principle**
+- Keep documentation footprint minimal and focused
+- Avoid creating unnecessary summary or explanation documents
+- All task outputs should consolidate in designated locations
+- Clean up temporary files after task completion
+
+**Documentation Hierarchy**
+1. **Workflow documents** (persistent) - Planning, analysis, decisions
+2. **Runtime final_output.md** (temporary) - Execution results
+3. **No additional files** - Avoid README, SUMMARY, or extra docs
+
+**Anti-Patterns to Avoid**
+- ❌ Creating summary documents after task completion
+- ❌ Generating feature documentation unless explicitly requested
+- ❌ Leaving temporary files in project root
+- ❌ Creating redundant documentation that duplicates workflow docs
+
 ### 1. Two-Layer Architecture
 
 **Workflow Layer (Persistent)**

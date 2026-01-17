@@ -315,6 +315,14 @@ When errors occur:
 - For large files, split into logical sections and create incrementally
 - This ensures better reliability and allows for progress tracking
 
+### 7. Minimal Documentation Output
+- **Do NOT create additional summary documents** after task completion
+- All outputs should be consolidated in `runtime/<task-id>/final_output.md`
+- **Do NOT create** separate README, SUMMARY, or documentation files in project root
+- **Do NOT generate** feature summaries or usage guides unless explicitly requested
+- Keep documentation structure clean and minimal
+- The workflow document and final_output.md are sufficient for task records
+
 ## Trigger Conditions
 
 Use this skill when:
