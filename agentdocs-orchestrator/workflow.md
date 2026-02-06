@@ -53,6 +53,31 @@
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+## Mandatory Gates Before Implementation (New)
+
+### Gate A: Plan and User Approval First
+- Before any implementation code changes, produce a concrete plan with:
+  - Goal and scope
+  - Impacted files
+  - Risks and rollback idea
+  - Verification strategy
+- Wait for explicit user approval (for example: "approved", "go ahead", "start").
+- If approval is not explicit, stop at planning.
+
+### Gate B: Segmented File Scope (>3 Files)
+- If expected changes touch more than **3 files**, split into stages.
+- Each stage should include at most 3 files and end with verification before continuing.
+- Do not batch large multi-file edits into a single pass.
+
+### Gate C: TDD Entry for Bug Fixes
+- Bug fix tasks must start with a failing repro script/test (Red).
+- Only after stable reproduction can implementation begin (Green).
+- Refactor is allowed only after tests pass and behavior is stable.
+
+### Gate D: No-Approval No-Code Rule
+- Do not generate implementation code when any mandatory gate is missing.
+- Treat missing repro evidence for bug fixes as a blocking condition.
+
 ## Phase 1: Task Analysis and Decomposition (Detailed)
 
 ### 1.1 Parse User Intent
@@ -361,6 +386,25 @@ Requirements:
 claude -p $mergePrompt | Out-File "$runtimePath/final_output.md"
 ```
 
+### 4.3 Defensive Completion Artifacts (Required)
+
+Before closing an implementation task, attach both checklists:
+
+1. `Potential Bug Checklist`
+   - Regression risks in existing behavior
+   - Edge cases not fully covered
+   - Error-path handling gaps
+   - Performance or memory side effects
+
+2. `Test Case Checklist`
+   - Happy path
+   - Edge case
+   - Failure path
+
+For bug-fix tasks, also include TDD evidence:
+- Red evidence: failing output before fix
+- Green evidence: passing output after fix
+
 ## State Persistence Specification
 
 Every state change must update `master_plan.md`:
@@ -452,14 +496,26 @@ rm -rf .agentdocs/runtime/YYMMDD-task-name/
 - Additional documentation creates clutter and confusion
 - Keep the project clean and focused on actual code/content
 
-### 5.5 Final Checklist
+### 5.5 Self-Evolution Rule Sync (Required)
+
+When the user corrects process rules:
+
+- Append or update the rule in project rule documentation (README/SKILL/workflow templates).
+- Mark the new rule as default for subsequent tasks.
+- Note the rule update in the current task's execution log.
+
+### 5.6 Final Checklist
 
 Before considering task complete:
 
+- [ ] Plan provided and explicitly approved before implementation
+- [ ] For bug fixes: failing repro/test captured before coding
+- [ ] If >3 files, work executed in segmented stages
+- [ ] Potential Bug Checklist attached
+- [ ] Test Case Checklist attached
 - [ ] All workflow TODOs marked as done
 - [ ] Workflow document moved to `done/` directory
 - [ ] Index.md updated (removed from current tasks)
 - [ ] Task runtime directory cleaned up
 - [ ] No additional documentation files created
 - [ ] Project directory remains clean
-```

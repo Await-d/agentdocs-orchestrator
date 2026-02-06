@@ -275,14 +275,23 @@ T-02 ───→ T-04
 - 保持文档结构简洁清晰
 - 工作流文档和 final_output.md 足以记录任务
 
+### 8. 强制执行规则（新增）
+- **方案先行门禁**：任何代码改动前，必须先提交实施方案（目标、影响文件、风险、验证方式），并等待用户明确确认后再动手。
+- **分段改动门禁**：预计改动超过 **3 个文件** 时，必须按阶段拆分（每阶段不超过 3 个文件），逐段完成与同步，避免一次性大范围改动。
+- **防御性编程输出**：代码完成后必须附带两份清单：`潜在 Bug 清单` 与 `测试用例清单`（至少覆盖正常路径、边界条件、异常路径）。
+- **TDD 修复模式**：修 Bug 时先写失败复现脚本或失败测试（Red），确认稳定复现后再修复（Green），最后再做必要整理（Refactor）。
+- **自我进化机制**：用户每次纠正规则后，需在规则文档中追加并默认对后续任务生效。
+- **拒绝无效代码**：未复现问题、未定义验证标准或未通过方案确认门禁时，不得直接产出实现代码。
+
 ## 📖 相关文档
 
-- [SKILL.md](SKILL.md) - 技能描述和快速参考
-- [workflow.md](workflow.md) - 详细工作流程说明
-- [templates.md](templates.md) - 完整模板集合
-- [cli-integration.md](cli-integration.md) - Claude CLI 深度集成
-- [examples.md](examples.md) - 实际使用示例
-- [notes.md](notes.md) - 开发笔记和观察
+- [RULES.md](agentdocs-orchestrator/RULES.md) - 强制执行规则（单一准则源）
+- [SKILL.md](agentdocs-orchestrator/SKILL.md) - 技能描述和快速参考
+- [workflow.md](agentdocs-orchestrator/workflow.md) - 详细工作流程说明
+- [templates.md](agentdocs-orchestrator/templates.md) - 完整模板集合
+- [cli-integration.md](agentdocs-orchestrator/cli-integration.md) - Claude CLI 深度集成
+- [examples.md](agentdocs-orchestrator/examples.md) - 实际使用示例
+- [notes.md](agentdocs-orchestrator/notes.md) - 开发笔记和观察
 
 ## 🔗 与 agentdocs 的集成
 

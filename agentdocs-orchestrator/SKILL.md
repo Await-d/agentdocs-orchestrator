@@ -323,6 +323,41 @@ When errors occur:
 - Keep documentation structure clean and minimal
 - The workflow document and final_output.md are sufficient for task records
 
+## Mandatory Guardrails (New)
+
+### 1. Plan-First Approval Gate
+- Before writing any implementation code, provide a concrete plan (goal, impacted files, risks, verification strategy).
+- Wait for explicit user approval before starting code changes.
+- If approval is missing, stop at planning.
+
+### 2. Segmented Changes Gate (>3 Files)
+- If the expected scope touches more than **3 files**, split the work into stages.
+- Each stage should target at most 3 files, then pause for verification/sync before the next stage.
+- Avoid broad multi-file edits in a single pass.
+
+### 3. Defensive Programming Deliverables
+- After code changes, always provide:
+  - A `Potential Bug Checklist`
+  - A `Test Case Checklist` covering happy path, edge cases, and failure paths
+- Do not mark work complete without both checklists.
+
+### 4. TDD Mode for Bug Fixes
+- For bug-fix tasks, execute in strict Red-Green-Refactor order:
+  1. Red: write a failing repro script/test first
+  2. Green: implement minimal fix
+  3. Refactor: clean up while keeping tests green
+- Never skip the failing reproduction step.
+
+### 5. Self-Evolution Rule Updates
+- When the user corrects process rules, treat it as a persistent rule update.
+- Update the relevant rule section in project docs/workflow notes so the new rule is applied by default in future tasks.
+
+### 6. Reject Ineffective Code
+- Do not produce implementation code if one of these is missing:
+  - Confirmed plan
+  - Defined verification criteria
+  - Repro evidence for bug-fix tasks
+
 ## Trigger Conditions
 
 Use this skill when:

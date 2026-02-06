@@ -12,6 +12,19 @@
 **Primary Goal**: [One sentence describing the final result to achieve]
 **Success Criteria**: [How to determine task completion]
 
+## ✅ Approval Gate (Must Pass Before Coding)
+- [ ] Plan includes scope, impacted files, risk analysis, and verification strategy
+- [ ] User explicitly approved implementation (e.g., "approved", "start")
+- [ ] Verification baseline is defined before code changes
+
+## 🧩 Segmented Change Plan (Required if >3 files)
+
+| Stage | File Scope (<=3 files) | Objective | Verification |
+|-------|-------------------------|-----------|--------------|
+| S1 | [file-a, file-b, file-c] | [Goal] | [Checks/tests] |
+| S2 | [Next <=3 files] | [Goal] | [Checks/tests] |
+| S3 | [Next <=3 files] | [Goal] | [Checks/tests] |
+
 ---
 
 ## 📋 Task Decomposition
@@ -124,6 +137,12 @@
 2. [Step 2]
 3. [Step 3]
 
+### TDD Bug Reproduction (Required for bug fixes)
+- Repro script/test path: [path/to/failing-test-or-script]
+- Expected failing output: [error message / failing assertion]
+- Reproduced on: [environment]
+- [ ] Failure reproduced before fix (Red)
+
 ---
 
 ## 📤 Expected Output
@@ -146,6 +165,8 @@
 - [Constraint 1: e.g., cannot modify original files]
 - [Constraint 2: e.g., must use specific format]
 - [Constraint 3: e.g., time limit]
+- [Constraint 4: do not implement code before approval gate is passed]
+- [Constraint 5: if expected changes >3 files, execute by segmented stages]
 
 ---
 
@@ -206,6 +227,29 @@
 
 ### Errors
 - [Error information and how it was handled]
+
+---
+
+## 🐞 Potential Bug Checklist (Defensive Programming)
+
+- [ ] Regression risk in existing behavior
+- [ ] Unhandled edge cases
+- [ ] Error-path handling gaps
+- [ ] Performance/memory side effects
+
+---
+
+## ✅ Test Case Checklist
+
+| Case Type | Scenario | Expected Result | Actual Result |
+|-----------|----------|-----------------|---------------|
+| Happy path | [Scenario] | [Expected] | [Actual] |
+| Edge case | [Scenario] | [Expected] | [Actual] |
+| Failure path | [Scenario] | [Expected] | [Actual] |
+
+### TDD Evidence (for bug fixes)
+- Red evidence (before fix): [failed test or script output]
+- Green evidence (after fix): [passed test output]
 
 ---
 

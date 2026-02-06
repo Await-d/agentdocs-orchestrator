@@ -539,6 +539,94 @@ Agent-03 failure detected
 
 ---
 
+## Example 6: Bug Fix with Approval Gate + TDD + Segmented Changes
+
+### User Request
+> "Fix intermittent 500 error in order API."
+
+### Phase 0️⃣ Mandatory Gates
+
+```markdown
+## Approval Gate
+- Plan:
+  - Goal: Fix order API intermittent 500 under concurrent requests
+  - Impacted files (estimated):
+    1. src/api/orders/controller.ts
+    2. src/api/orders/service.ts
+    3. src/api/orders/repository.ts
+    4. tests/orders/concurrency.test.ts
+  - Risk: regression on normal order creation flow
+  - Verification: run targeted order API tests + concurrency repro script
+
+- User Approval: ✅ Explicitly approved before coding
+```
+
+### TDD Red Step (Reproduce Before Fix)
+
+```bash
+# Failing reproduction script
+node scripts/repro-order-500.js
+
+# Expected failing signal
+# Error: 500 Internal Server Error (observed in >= 3/50 concurrent requests)
+```
+
+### Segmented Change Plan (>3 files)
+
+```markdown
+| Stage | Files (<=3) | Goal | Verification |
+|-------|-------------|------|--------------|
+| S1 | controller.ts, service.ts | Add request-level guard and idempotency path | Existing order API tests pass |
+| S2 | repository.ts, concurrency.test.ts | Make write path atomic + add regression test | Repro script turns green |
+```
+
+### Green Step (Minimal Fix)
+
+```
+Stage S1 ✅ Completed
+- No 500 on standard request path
+
+Stage S2 ✅ Completed
+- Concurrency test added and passing
+- Repro script: 0/50 failures
+```
+
+### Defensive Programming Output (Required)
+
+```markdown
+## Potential Bug Checklist
+- [x] Checked regression risk on normal order create flow
+- [x] Reviewed edge case: duplicate request retries
+- [x] Reviewed failure path: DB timeout fallback
+- [x] Reviewed side effects: lock contention/performance
+
+## Test Case Checklist
+| Case Type | Scenario | Result |
+|-----------|----------|--------|
+| Happy path | create order with valid payload | ✅ pass |
+| Edge case | duplicate request id | ✅ pass |
+| Failure path | DB timeout injection | ✅ pass |
+
+## TDD Evidence
+- Red: `scripts/repro-order-500.js` failed before fix
+- Green: same script passed after fix (0/50 failures)
+```
+
+### Self-Evolution Update Example
+
+When the user adds a new process rule during review:
+
+```markdown
+User correction: "Always include rollback notes for production-impacting changes."
+
+Action:
+1. Add this rule to README/SKILL/workflow templates
+2. Apply it as default for all subsequent tasks
+3. Record update in current execution log
+```
+
+---
+
 ## Tips Summary
 
 ### 1. Task Granularity Control
