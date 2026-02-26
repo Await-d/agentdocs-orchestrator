@@ -10,8 +10,8 @@
 - **依赖分析** - 自动识别任务间的依赖关系，构建 DAG 执行图
 
 ### 2. 多代理并行执行
+- **三种执行模式** - OpenCode 原生 `task()` / 顺序执行 / Claude CLI
 - **并行任务调度** - 自动识别可并行执行的任务组
-- **多种执行模式** - 支持本地模拟执行和 Claude CLI 真实执行
 - **状态实时追踪** - 实时更新任务执行状态（待执行、运行中、已完成、失败）
 
 ### 3. 运行时隔离
@@ -23,6 +23,8 @@
 - **自动状态更新** - 任务完成后自动同步到工作流文档
 - **进度可视化** - 使用状态图标清晰展示任务进度
 - **完成后归档** - 已完成任务自动移至归档目录
+
+---
 
 ## 📁 目录结构
 
@@ -46,24 +48,42 @@
 ```
 
 **关键区别：**
-- `workflow/` - 任务**规划与思考**（持久化，决策记录）
-- `runtime/<task-id>/` - 任务**分布式执行**（临时，每个任务隔离）
+- `workflow/` - 任务**规划与思考**（持久化，决策记录，应 commit 到 git）
+- `runtime/<task-id>/` - 任务**分布式执行**（临时，每个任务隔离，应加入 `.gitignore`）
+
+## 🗂️ Git 集成策略
+
+`.agentdocs/` 的两个子目录有不同的 git 生命周期：
+
+```bash
+# 推荐的 .gitignore 配置
+echo ".agentdocs/runtime/" >> .gitignore
+```
+
+| 目录 | git 策略 | 原因 |
+|------|----------|------|
+| `workflow/` | **提交** | 持久化决策记录，是项目文档的一部分 |
+| `workflow/done/` | 按需保留 | 历史存档，可选是否保留 |
+| `runtime/` | **忽略** | 临时执行协调空间，任务完成后删除 |
+| `index.md` | **提交** | 知识入口，需要持久化 |
+
+---
 
 ## 🚀 快速开始
 
 ### 步骤 1：初始化 agentdocs 结构
 
 ```bash
-# 确保目录结构存在
 mkdir -p .agentdocs/workflow/done
 mkdir -p .agentdocs/runtime
+echo ".agentdocs/runtime/" >> .gitignore
 ```
 
-如果 `.agentdocs/index.md` 不存在，需要先创建它。
+如果 `.agentdocs/index.md` 不存在，创建一个空文件作为知识入口。
 
 ### 步骤 2：创建工作流文档
 
-对于复杂任务，自动创建工作流文档。任务 ID 格式为 `YYMMDD-task-name`（例如：`260112-fix-audio-player`）。
+任务 ID 格式为 `YYMMDD-task-name`（例如：`260112-fix-audio-player`）。
 
 ```markdown
 # .agentdocs/workflow/YYMMDD-task-name.md
@@ -83,215 +103,79 @@ mkdir -p .agentdocs/runtime
 - [ ] T-01: [任务描述]
 - [ ] T-02: [任务描述]
 
-### 阶段 2：[阶段名称]
-- [ ] T-03: [任务描述]
-- [ ] T-04: [任务描述]
-
 ## 备注
 [执行过程中的重要观察、阻塞或决策]
 ```
 
 ### 步骤 3：在索引中注册
 
-将新的工作流文档添加到 `.agentdocs/index.md`：
-
 ```markdown
 ## 当前任务文档
 `workflow/YYMMDD-task-name.md` - [任务简要描述]
 ```
 
+---
+
 ## 🔄 核心五阶段工作流
 
-### 阶段 1️⃣ 任务分析与规划
-1. **检测用户语言** - 所有文档将使用与用户相同的语言
-2. **检查现有上下文** - 读取 `.agentdocs/index.md` 查找相关文档
-3. **分析用户意图** - 识别依赖关系和约束条件
-4. **创建工作流文档** - 如果复杂任务缺少规划（使用用户语言）
-5. **拆解为原子任务** - 每个任务独立可执行
+| 阶段 | 关键动作 |
+|------|---------|
+| 1️⃣ 分析与规划 | 检查 index.md → 分析意图 → 创建工作流文档 → 拆解原子任务 |
+| 2️⃣ 代理分配 | 创建 `runtime/<task-id>/` → 生成 master_plan.md → 分配 Agent |
+| 3️⃣ 并行执行 | OpenCode `task()` / 顺序执行 / CLI 三选一 |
+| 4️⃣ 结果聚合 | 收集 results/ → 按依赖顺序合并 → 生成 final_output.md |
+| 5️⃣ 同步与清理 | 更新工作流 TODOs → 归档 → 清理 runtime/ |
 
-### 阶段 2️⃣ 代理分配与状态标记
-- 为该任务创建独立的运行时目录
-- 创建运行时编排计划（`master_plan.md`）
-- 生成代理任务文件
-- 初始化任务状态表
+**状态图标：** 🟡 待执行 | 🔵 运行中 | ✅ 已完成 | ❌ 失败 | ⏸️ 等待依赖
 
-### 阶段 3️⃣ 并行执行
-- **方法 A：本地模拟执行** - 在当前会话中模拟多代理执行
-- **方法 B：通过 Claude CLI 启动子代理** - 真实的并行执行
+> 详细工作流说明参见 [SKILL.md](agentdocs-orchestrator/SKILL.md)
 
-### 阶段 4️⃣ 结果聚合
-1. 从 `.agentdocs/runtime/<task-id>/results/` 收集所有代理结果
-2. 根据依赖关系组装
-3. 生成最终输出
-
-### 阶段 5️⃣ 状态同步与清理
-1. **更新工作流文档** - 标记已完成的待办事项
-2. **检查任务完成** - 如果所有待办事项都完成：
-   - 将文档移至 `.agentdocs/workflow/done/`
-   - 从 `index.md` 的"当前任务文档"中移除
-3. **清理任务运行时** - 该特定任务完全完成后：
-   ```bash
-   rm -rf .agentdocs/runtime/YYMMDD-task-name/
-   ```
-
-## 📊 状态图标
-
-- 🟡 待执行（Pending）
-- 🔵 运行中（Running）
-- ✅ 已完成（Completed）
-- ❌ 失败（Failed）
-- ⏸️ 等待中（Waiting for dependencies）
+---
 
 ## 🎯 使用场景
 
-在以下情况下使用此编排系统：
+在以下情况下激活此编排系统：
 
-- ✅ 复杂的多步骤任务（3+ 步骤）
-- ✅ 用户提到"并行"、"并发"、"子任务"
-- ✅ 需要为子任务启动 Claude CLI
-- ✅ 需要任务分解和编排
-- ✅ 用户提到"代理"、"子代理"
+- ✅ 复杂的多步骤任务（3+ 步骤，存在可并行部分）
+- ✅ 用户提到"并行"、"并发"、"子任务"、"代理"
+- ✅ 需要任务分解、跨步骤状态追踪
+- ✅ 需要通过 Claude CLI 执行子任务
 
-## 🔧 执行方法
+**不需要激活：**
 
-### 本地模拟执行
+- ❌ ≤2 步的顺序任务（直接执行更高效）
+- ❌ 单文件修改或简单重构
 
-```markdown
-═══════════════════════════════════════════════════
-🤖 Agent-01 [T-01: 任务描述]
-───────────────────────────────────────────────────
-📥 接收指令：[具体任务描述]
-⚙️ 执行步骤：
-   1. [步骤 1 描述]
-   2. [步骤 2 描述]
-📤 输出结果：[结果摘要]
-✅ 状态：已完成
-═══════════════════════════════════════════════════
+---
+
+## 📚 依赖关系类型
+
+```
+串行依赖:    T-01 → T-02 → T-03
+
+并行独立:    T-01 ─┬─→ T-04
+             T-02 ─┤
+             T-03 ─┘
+
+DAG 依赖:    T-01 ───→ T-03
+                 ╲   ╱
+             T-02 ───→ T-04
 ```
 
-### Claude CLI 并行执行
-
-**Windows PowerShell：**
-```powershell
-$taskId = "YYMMDD-task-name"
-$runtimePath = ".agentdocs/runtime/$taskId"
-
-# 并行执行
-$jobs = @()
-$agents = Get-ChildItem "$runtimePath/agent_tasks/*.md"
-foreach ($agent in $agents) {
-    $jobs += Start-Job -ScriptBlock {
-        param($taskFile, $resultPath)
-        $task = Get-Content $taskFile -Raw
-        claude -p $task | Out-File $resultPath
-    } -ArgumentList $agent.FullName, "$runtimePath/results/$($agent.BaseName)-result.md"
-}
-$jobs | Wait-Job | Receive-Job
-```
-
-**Linux/Mac：**
-```bash
-TASK_ID="YYMMDD-task-name"
-RUNTIME_PATH=".agentdocs/runtime/$TASK_ID"
-
-# 并行执行
-parallel claude -p "$(cat {})" ::: $RUNTIME_PATH/agent_tasks/*.md
-```
-
-## 📚 依赖关系处理
-
-### 串行依赖
-```
-T-01 → T-02 → T-03
-```
-
-### 并行独立
-```
-T-01 ─┬─→ T-04
-T-02 ─┤
-T-03 ─┘
-```
-
-### DAG 依赖
-```
-T-01 ───→ T-03
-    ╲   ╱
-T-02 ───→ T-04
-```
-
-## 🌍 语言适配
-
-**关键**：所有文档必须使用用户的语言编写。
-
-1. **检测用户语言** - 识别用户请求中使用的语言
-2. **保持一致** - 所有生成的文档（工作流、索引、运行时）使用与用户相同的语言
-3. **应用于所有内容**：
-   - 工作流文档标题和内容
-   - 任务描述和待办事项
-   - 索引条目
-   - 运行时主计划和代理任务
-   - 最终输出报告
-
-示例：
-- 用户说中文 → 创建 `workflow/260112-修复音频播放器.md`，内容为中文
-- 用户说英文 → 创建 `workflow/260112-fix-audio-player.md`，内容为英文
-
-## 💡 最佳实践
-
-### 1. 任务粒度
-- 每个原子任务：**1-5 分钟**
-- 太大 → 进一步分解
-- 太小 → 合并
-
-### 2. 工作流文档优先
-- 始终在执行前创建/更新工作流文档
-- 文档捕获思考，运行时捕获执行
-
-### 3. 状态同步
-- 每个任务完成后更新工作流待办事项
-- 永远不要让工作流文档与实际状态不同步
-
-### 4. 清理运行时
-- 运行时是临时协调空间
-- 任务完成后清理以避免混淆
-
-### 5. LSP 协议优先
-- 当环境支持 LSP（语言服务器协议）时，优先使用 LSP 操作
-- 用于：代码导航、符号查找、重构、诊断
-- 优势：更准确、与 IDE 一致、语言感知操作
-- LSP 不可用时回退到基于文本的操作
-
-### 6. 分块文件创建
-- 创建新文件时，使用分块创建方法
-- 每个块不应超过 **150 行**
-- 对于大文件，拆分为逻辑部分并逐步创建
-- 这确保了更好的可靠性并允许进度跟踪
-
-### 7. 最小化文档输出
-- **不要创建额外的总结文档** - 任务完成后避免生成额外文档
-- 所有输出应整合在 `runtime/<task-id>/final_output.md` 中
-- **不要创建** 项目根目录的独立 README、SUMMARY 或说明文档
-- **不要生成** 功能总结或使用指南，除非用户明确要求
-- 保持文档结构简洁清晰
-- 工作流文档和 final_output.md 足以记录任务
-
-### 8. 强制执行规则（新增）
-- **方案先行门禁**：任何代码改动前，必须先提交实施方案（目标、影响文件、风险、验证方式），并等待用户明确确认后再动手。
-- **分段改动门禁**：预计改动超过 **3 个文件** 时，必须按阶段拆分（每阶段不超过 3 个文件），逐段完成与同步，避免一次性大范围改动。
-- **防御性编程输出**：代码完成后必须附带两份清单：`潜在 Bug 清单` 与 `测试用例清单`（至少覆盖正常路径、边界条件、异常路径）。
-- **TDD 修复模式**：修 Bug 时先写失败复现脚本或失败测试（Red），确认稳定复现后再修复（Green），最后再做必要整理（Refactor）。
-- **自我进化机制**：用户每次纠正规则后，需在规则文档中追加并默认对后续任务生效。
-- **拒绝无效代码**：未复现问题、未定义验证标准或未通过方案确认门禁时，不得直接产出实现代码。
+---
 
 ## 📖 相关文档
 
-- [RULES.md](agentdocs-orchestrator/RULES.md) - 强制执行规则（单一准则源）
-- [SKILL.md](agentdocs-orchestrator/SKILL.md) - 技能描述和快速参考
-- [workflow.md](agentdocs-orchestrator/workflow.md) - 详细工作流程说明
-- [templates.md](agentdocs-orchestrator/templates.md) - 完整模板集合
-- [cli-integration.md](agentdocs-orchestrator/cli-integration.md) - Claude CLI 深度集成
-- [examples.md](agentdocs-orchestrator/examples.md) - 实际使用示例
-- [notes.md](agentdocs-orchestrator/notes.md) - 开发笔记和观察
+| 文件 | 用途 |
+|------|------|
+| [SKILL.md](agentdocs-orchestrator/SKILL.md) | **主入口** — 触发条件、决策树、执行模式、完整行为规范 |
+| [RULES.md](agentdocs-orchestrator/RULES.md) | 强制执行规则（方案先行、TDD、分段改动）|
+| [workflow.md](agentdocs-orchestrator/workflow.md) | 详细工作流程说明（含调度算法）|
+| [templates.md](agentdocs-orchestrator/templates.md) | 完整模板集合（master_plan、agent task、result、final output）|
+| [cli-integration.md](agentdocs-orchestrator/cli-integration.md) | Claude CLI 深度集成（Mode C）|
+| [examples.md](agentdocs-orchestrator/examples.md) | 实际使用示例（代码审查、翻译、API 测试、TDD Bug 修复）|
+
+---
 
 ## 🔗 与 agentdocs 的集成
 
@@ -299,36 +183,9 @@ T-02 ───→ T-04
 
 - **执行前**：检查 `index.md` 查找相关架构文档、约束条件
 - **执行期间**：引用现有文档获取上下文
-- **执行后**：使用新模式、决策或记忆更新文档
+- **执行后**：将新模式、决策或记忆更新到文档
 
-## 🎓 示例场景
-
-### 场景 1：代码审查任务
-```
-用户请求："对 src/ 目录进行全面的代码审查"
-
-编排器行动：
-1. 创建 workflow/260117-code-review.md
-2. 分解为：
-   - T-01: 读取所有代码文件
-   - T-02: 代码风格检查（并行）
-   - T-03: 安全扫描（并行）
-   - T-04: 性能分析（并行）
-   - T-05: 生成综合报告
-3. 执行并聚合结果
-```
-
-### 场景 2：多文件重构
-```
-用户请求："将所有组件从类组件迁移到函数组件"
-
-编排器行动：
-1. 创建 workflow/260117-component-migration.md
-2. 识别所有类组件文件
-3. 为每个文件创建独立的迁移任务
-4. 并行执行迁移
-5. 验证并更新导入
-```
+---
 
 ## 📝 许可证
 
@@ -336,5 +193,5 @@ T-02 ───→ T-04
 
 ---
 
-**版本**: 1.0.0
-**最后更新**: 2026-01-17
+**版本**: 1.1.0
+**最后更新**: 2026-02-26

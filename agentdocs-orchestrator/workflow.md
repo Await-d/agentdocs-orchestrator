@@ -33,7 +33,7 @@
 │ Phase 3: Parallel Execution                                      │
 │ ┌───────────────────────────────────────────────────────────┐   │
 │ │ 3.1 Identify parallelizable task groups                    │   │
-│ │ 3.2 Choose execution method (simulated / CLI)              │   │
+│ │ 3.2 Choose execution method (sequential / OpenCode task() / CLI) │   │
 │ │ 3.3 Execute tasks with no dependencies                     │   │
 │ │ 3.4 Execute subsequent tasks after dependencies complete   │   │
 │ │ 3.5 Record execution logs                                  │   │
@@ -206,7 +206,7 @@ def schedule_tasks(tasks, dependencies):
                     ready_queue.append(task)
 ```
 
-### 3.2 Simulated Execution Output Format
+### 3.2 Sequential Execution Output Format
 
 ```
 ══════════════════════════════════════════════════════════════════

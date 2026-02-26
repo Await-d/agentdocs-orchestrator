@@ -78,7 +78,7 @@ Scan the project's src/ directory, read all TypeScript files (.ts, .tsx)
 
 ---
 
-### Phase 3️⃣ Simulated Parallel Execution
+### Phase 3️⃣ Sequential Execution (in-context)
 
 ```
 ══════════════════════════════════════════════════════════════════

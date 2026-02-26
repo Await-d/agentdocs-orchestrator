@@ -13,7 +13,7 @@ This guide provides detailed instructions on how to launch sub-agents through Cl
 claude --version
 
 # If not installed, install via npm
-npm install -g @anthropic-ai/claude-cli
+npm install -g @anthropic-ai/claude-code
 ```
 
 ### Basic Command Format
@@ -550,8 +550,8 @@ function Invoke-AgentWithFallback {
         return claude -p $task
     }
     else {
-        Write-Warning "Claude CLI unavailable, using local simulation mode"
-        return "[Simulated execution] Task received, but CLI unavailable"
+        Write-Warning "Claude CLI unavailable, falling back to sequential execution mode"
+        return "[Sequential execution mode] CLI unavailable — execute tasks in-context instead"
     }
 }
 ```
@@ -562,11 +562,18 @@ function Invoke-AgentWithFallback {
 
 ```powershell
 # Complete distributed code review workflow
+# Uses task-isolated runtime directory (required for concurrent task safety)
 
-# 1. Initialize
-$orchestratorDir = ".agentdocs"
-New-Item -ItemType Directory -Path "$orchestratorDir/agent_tasks" -Force | Out-Null
-New-Item -ItemType Directory -Path "$orchestratorDir/results" -Force | Out-Null
+param(
+    [Parameter(Mandatory=$true)]
+    [string]$TaskId = ("$(Get-Date -Format 'yyMMdd')-code-review")
+)
+
+$runtimePath = ".agentdocs/runtime/$TaskId"
+
+# 1. Initialize task-isolated directories
+New-Item -ItemType Directory -Path "$runtimePath/agent_tasks" -Force | Out-Null
+New-Item -ItemType Directory -Path "$runtimePath/results" -Force | Out-Null
 
 # 2. Create task files
 $tasks = @{
@@ -577,25 +584,25 @@ $tasks = @{
 }
 
 foreach ($agent in $tasks.Keys) {
-    $tasks[$agent] | Out-File "$orchestratorDir/agent_tasks/$agent.md" -Encoding UTF8
+    $tasks[$agent] | Out-File "$runtimePath/agent_tasks/$agent.md" -Encoding UTF8
 }
 
 # 3. Parallel execution
-Write-Host "🚀 Launching distributed code review..." -ForegroundColor Cyan
+Write-Host "🚀 Launching distributed code review (Task: $TaskId)..." -ForegroundColor Cyan
 
 $jobs = foreach ($agent in $tasks.Keys) {
     Start-Job -Name $agent -ScriptBlock {
         param($taskPath, $resultPath)
         $task = Get-Content $taskPath -Raw
         claude -p $task | Out-File $resultPath -Encoding UTF8
-    } -ArgumentList "$orchestratorDir/agent_tasks/$agent.md", "$orchestratorDir/results/$agent-result.md"
+    } -ArgumentList "$runtimePath/agent_tasks/$agent.md", "$runtimePath/results/$agent-result.md"
 }
 
 $jobs | Wait-Job | Out-Null
 Write-Host "✅ All reviews completed" -ForegroundColor Green
 
 # 4. Aggregate results
-Merge-AgentResults
+Merge-AgentResults -TaskId $TaskId
 
-Write-Host "📋 Code review report: $orchestratorDir/final_output.md" -ForegroundColor Yellow
+Write-Host "📋 Code review report: $runtimePath/final_output.md" -ForegroundColor Yellow
 ```

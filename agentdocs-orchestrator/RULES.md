@@ -1,26 +1,32 @@
 # RULES.md
 
 Status: Active  
-Version: 1.0.0  
-Last Updated: 2026-02-06  
+Version: 1.1.0  
+Last Updated: 2026-02-26  
 Owner: Project Maintainer
 
 ## 1) Purpose
 
-This file is the single source of truth for implementation behavior in this repository.
-When process rules conflict across documents, this file takes precedence.
+This file defines the **default** implementation guardrails for projects using the agentdocs-orchestrator skill.
+When process rules conflict across documents, this file takes precedence **unless the target project defines overrides**
+in `.agentdocs/local-rules.md`, which takes highest precedence for that project.
 
 ## 2) Scope
 
-These rules apply to all implementation tasks, bug fixes, and refactors.
+These rules apply to all implementation tasks, bug fixes, and refactors within the target project.
 They do not block read-only analysis tasks.
+
+**Project-level customization**: Create `.agentdocs/local-rules.md` in your project to extend,
+restrict, or override any rule here. Local rules take precedence over this file.
 
 ## 3) Hard Gates Before Coding
 
 All items below must be satisfied before writing implementation code:
 
 - [ ] Plan is written and includes goal, impacted files, risk analysis, and verification strategy
-- [ ] Explicit user approval is received (for example: "approved", "go ahead", "start")
+- [ ] Explicit user approval is received. Approval signals include:
+  - English: "approved", "go ahead", "start", "ok", "yes", "proceed", "sounds good", "let's do it"
+  - Chinese: "好的", "开始", "开始吧", "可以", "没问题", "同意", "确认", "去做"
 - [ ] Verification baseline is defined
 
 If any item is missing: stop at planning and do not implement.
@@ -80,9 +86,10 @@ A task is not complete until all items are true:
 
 When the user corrects process behavior:
 
-1. Update this RULES.md
-2. Add a new entry in Rule Changelog
-3. Apply the new rule immediately to all subsequent tasks
+1. Update `.agentdocs/local-rules.md` in the **current project** with the new rule
+   (do NOT modify the skill's own RULES.md — that file lives in the skill directory and is not project-editable)
+2. Add a new entry in Rule Changelog below
+3. Apply the new rule immediately to all subsequent tasks in this project
 
 ## 9) Violation Handling
 
@@ -99,3 +106,4 @@ Do not continue with partial compliance.
 | Date | Version | Change | Trigger | Effective |
 |------|---------|--------|---------|-----------|
 | 2026-02-06 | 1.0.0 | Initial rules baseline | User-defined process constraints | Immediate |
+| 2026-02-26 | 1.1.0 | Scope clarification; self-evolution targets local-rules.md; multilingual approval signals | Skill review | Immediate |

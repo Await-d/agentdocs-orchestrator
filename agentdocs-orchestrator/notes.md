@@ -45,7 +45,7 @@
 - Agent-01, Agent-02, ... Agent-N
 - Each agent is responsible for one or more atomic tasks
 - Agents can be:
-  - Local simulated execution
+  - Sequential execution (in-context)
   - Independent processes launched via Claude CLI
 
 ### 4. Task State Management
@@ -61,7 +61,7 @@ Pending → Running → Completed
 claude -p "Task description" --output-format json
 
 # Call with context
-claude -p "Task description" --context-file context.md
+claude -p "$(cat context.md)\n\nTask description"
 
 # Background execution
 Start-Process claude -ArgumentList '-p "Task description"' -NoNewWindow
@@ -122,7 +122,7 @@ distributed-task-orchestrator/
 - Generate task file for each Agent
 
 ### Phase 3: Parallel Execution
-- Option: Local simulated execution
+- Option: Sequential execution (in-context)
 - Option: Launch subprocesses via CLI
 - Record execution logs
 
@@ -171,6 +171,9 @@ After specific task completion:
 
 CLI parameters to use:
 - `-p, --prompt` - Pass prompt directly
-- `--context-file` - Provide context file
 - `--output-format` - Output format (text/json)
-- `--no-interactive` - Non-interactive mode
+- `--continue`, `-c` - Continue previous conversation
+- `--print` - Non-interactive print mode (no `--no-interactive` flag exists)
+
+> **Note**: `--context-file` does not exist in `@anthropic-ai/claude-code`.
+> Pass file contents inline: `claude -p "$(cat context.md) \n\n$task"`
