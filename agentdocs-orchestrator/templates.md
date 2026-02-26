@@ -643,3 +643,78 @@ Write-Host ""
 Write-Host "🎉 Initialization complete!" -ForegroundColor Cyan
 Write-Host "Next step: Edit $runtimeDir/master_plan.md to define tasks" -ForegroundColor Yellow
 ```
+
+---
+
+## 7. Durable Memory Templates
+
+### `.agentdocs/index.md` Memory Sections Template
+
+```markdown
+## Architecture Decisions
+- [YYYY-MM-DD] [Decision] — [Why] — [Scope/Impact]
+
+## Coding Conventions
+- [Rule] — [Example path]
+
+## Known Pitfalls
+- [YYYY-MM-DD] [Symptom] → [Root cause] → [Fix]
+
+## Global Important Memory
+- [Long-lived constraint or preference]
+```
+
+### Memory Entry Template (append/update)
+
+```markdown
+### [YYYY-MM-DD] [Memory Type]
+- Context: [Where this was discovered]
+- Memory: [The reusable knowledge]
+- Action: [What to do next time]
+- Scope: [Which module/path this applies to]
+```
+
+### Memory Extraction Checklist
+
+- [ ] Is this reusable beyond the current task?
+- [ ] Is this non-obvious and worth remembering?
+- [ ] Is this already present in index.md (deduplicated)?
+- [ ] Is the entry concise (1-2 lines, plus date if needed)?
+
+### Memory Sync Prompt Template
+
+```markdown
+[CONTEXT]
+You are syncing durable project memory for agentdocs-orchestrator.
+
+[INPUT]
+1) Current memory file: `.agentdocs/index.md`
+2) Completed workflow doc: `.agentdocs/workflow/<task-id>.md` or `.agentdocs/workflow/done/<task-id>.md`
+3) Execution result: `.agentdocs/runtime/<task-id>/final_output.md` (if exists)
+
+[TASK]
+Extract reusable knowledge and update only these sections in `index.md`:
+- Architecture Decisions
+- Coding Conventions
+- Known Pitfalls
+- Global Important Memory
+
+[RULES]
+- Keep each memory entry to 1-2 lines
+- Do not include runtime logs or one-off details
+- Deduplicate: update existing similar entries instead of adding duplicates
+- Include date for Architecture Decisions and Known Pitfalls
+- Respect `.agentdocs/local-rules.md` if present
+
+[OUTPUT FORMAT]
+Return three blocks:
+
+## Update Existing Entries
+- [Section] [Old entry] -> [New entry]
+
+## Add New Entries
+- [Section] [New memory entry]
+
+## Skip (Not Durable)
+- [Reason] [Candidate detail]
+```

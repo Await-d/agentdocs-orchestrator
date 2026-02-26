@@ -466,6 +466,36 @@ When all TODOs in workflow document are marked as done:
    - Remove from "Current Task Documents" section
    - Optionally add to "Completed Tasks" section with brief summary
 
+### 5.2.1 Durable Memory Extraction (Required)
+
+After task completion, extract reusable knowledge into `.agentdocs/index.md`.
+
+**Write to these sections only:**
+- `Architecture Decisions`
+- `Coding Conventions`
+- `Known Pitfalls`
+- `Global Important Memory`
+
+**Extraction rules:**
+1. Keep each entry to 1-2 lines
+2. Skip one-off details and runtime noise
+3. Deduplicate against existing entries before append
+4. Include date for decisions and pitfalls
+
+**Automatic sync sequence:**
+1. Read `.agentdocs/index.md` memory sections
+2. Read task artifacts (`workflow/<task-id>.md` + `runtime/<task-id>/final_output.md` when available)
+3. Use `templates.md` → `### Memory Sync Prompt Template` to generate update/add/skip lists
+4. Apply only validated updates to `index.md`
+5. Record in workflow notes: `Memory sync: completed` (or blocker reason)
+
+Example:
+
+```markdown
+## Known Pitfalls
+- [2026-02-26] Symptom: flaky parallel write failures → Root cause: shared output path in non-isolated runtime → Fix: always use `runtime/<task-id>/results/`.
+```
+
 ### 5.3 Cleanup Task Runtime
 
 **Critical**: Only clean up the specific task's runtime directory:

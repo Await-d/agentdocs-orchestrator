@@ -140,11 +140,77 @@ Track all status changes in `master_plan.md`.
 - Merge in dependency order
 - Generate `final_output.md`
 
-### Phase 5️⃣ Status Sync and Cleanup
+### Phase 5️⃣ Status Sync, Memory Sync, and Cleanup
 
 1. Update workflow TODOs — mark completed items (`- [x] T-01 ✅`)
 2. If all TODOs done: move workflow doc to `done/`, update `index.md`
-3. Cleanup: `rm -rf .agentdocs/runtime/YYMMDD-task-name/`
+3. Extract durable memory from this task and append to `index.md` (see Memory Protocol)
+4. Cleanup: `rm -rf .agentdocs/runtime/YYMMDD-task-name/`
+
+---
+
+## Memory Protocol (Durable Knowledge)
+
+Use `.agentdocs/index.md` as the durable memory entry point. After each completed complex task,
+extract only reusable knowledge (not task noise) and write it into structured sections.
+
+### Memory Sections in `index.md`
+
+```markdown
+## Architecture Decisions
+- [YYYY-MM-DD] [Decision] — [Why] — [Scope/Impact]
+
+## Coding Conventions
+- [Rule] — [Example path]
+
+## Known Pitfalls
+- [Symptom] → [Root cause] → [Fix]
+
+## Global Important Memory
+- [Long-lived constraint or preference]
+```
+
+### What to Write
+
+Write memory only if at least one condition is true:
+- A non-obvious architecture decision was made
+- A recurring bug/pitfall was identified and fixed
+- A stable coding convention was established or corrected
+- User clarified a persistent preference or process rule
+
+### What NOT to Write
+
+Do NOT write:
+- One-off implementation details
+- Temporary runtime logs
+- Raw command output dumps
+- Duplicates of existing memory entries
+
+### Memory Update Rules
+
+1. **Deduplicate first**: if similar memory exists, update existing line instead of appending a new duplicate
+2. **Keep concise**: each memory item should be 1–2 lines max
+3. **Timestamp decisions**: include date on architecture decisions and major pitfalls
+4. **Project-local precedence**: if `.agentdocs/local-rules.md` exists, memory updates must respect it
+
+### Automatic Memory Sync (Recommended)
+
+At task completion, run a small memory-sync pass before cleanup:
+1. Read current memory sections in `.agentdocs/index.md`
+2. Extract candidate entries from `workflow/<task-id>.md` and `runtime/<task-id>/final_output.md`
+3. Apply dedup/update rules (update existing entries when semantically similar)
+4. Write only net-new durable memory back to `index.md`
+5. Add one line in workflow notes: `Memory sync: completed`
+
+Use the reusable prompt in `templates.md` under:
+`## 7. Durable Memory Templates` → `### Memory Sync Prompt Template`
+
+### Read Path Before Execution
+
+Before implementing complex tasks, read in this order:
+1. `.agentdocs/local-rules.md` (if exists)
+2. `.agentdocs/index.md` memory sections
+3. Relevant active workflow docs
 
 ---
 
