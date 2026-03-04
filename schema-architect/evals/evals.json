@@ -1,0 +1,65 @@
+{
+  "skill_name": "schema-architect",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我在做一个在线课程平台。用户可以注册成为学生或讲师。讲师可以创建课程，每个课程有多个章节，每个章节下面有多个课时。学生可以购买课程，购买后可以跟踪学习进度（记录看到了哪个课时）。学生还可以对课程进行评价打分。帮我设计数据库表结构。",
+      "expected_output": "A complete Markdown document with relationship analysis table, mermaid ER diagram, and table definitions for: users, courses, chapters, lessons, enrollments (junction), progress tracking, and reviews. Should handle user role differentiation, 1:N for course→chapters→lessons, N:N for student↔course via enrollments, and proper FK relationships.",
+      "files": [],
+      "expectations": [
+        "Output is a valid Markdown document with clear section headings",
+        "Contains a relationship analysis table listing all entity pairs and their cardinalities",
+        "Contains a mermaid erDiagram code block",
+        "Defines a users table (or equivalent) that handles both student and instructor roles",
+        "Defines a courses table with FK to instructor/user",
+        "Defines chapters and lessons tables with proper 1:N hierarchy (course→chapter→lesson)",
+        "Defines an enrollments or purchases junction-like table linking students to courses",
+        "Defines a progress tracking table referencing both enrollment/user and lesson",
+        "Defines a reviews/ratings table with FK to user and course",
+        "All tables include id, created_at, updated_at standard columns",
+        "Foreign key columns follow {table_singular}_id naming convention",
+        "Contains a Design Notes section"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "下面是我们系统的一些接口返回的数据结构，帮我反推出数据库表设计：\n\n```typescript\ninterface Project {\n  id: string;\n  name: string;\n  description: string;\n  owner: User;\n  members: ProjectMember[];\n  tags: Tag[];\n}\n\ninterface ProjectMember {\n  user: User;\n  role: 'admin' | 'editor' | 'viewer';\n  joinedAt: Date;\n}\n\ninterface User {\n  id: string;\n  email: string;\n  displayName: string;\n  avatar?: string;\n}\n\ninterface Tag {\n  id: string;\n  name: string;\n  color: string;\n}\n\ninterface Task {\n  id: string;\n  title: string;\n  description?: string;\n  status: 'todo' | 'in_progress' | 'done';\n  priority: 'low' | 'medium' | 'high';\n  assignee?: User;\n  project: Project;\n  parentTask?: Task;\n  subTasks: Task[];\n  tags: Tag[];\n  dueDate?: Date;\n}\n```\n\n请分析这些接口之间的关系并生成数据库表结构文档。",
+      "expected_output": "Markdown document reverse-engineering TypeScript interfaces into database tables. Should identify: users, projects, project_members (junction with role), tags, projects_tags (N:N junction), tasks (with self-referencing parent_task_id), tasks_tags (N:N junction). Must handle the self-referential Task→parentTask relationship correctly.",
+      "files": [],
+      "expectations": [
+        "Output is a valid Markdown document with clear section headings",
+        "Contains a relationship analysis table",
+        "Contains a mermaid erDiagram code block",
+        "Defines a users table with email, display_name, avatar columns",
+        "Defines a projects table with owner_id FK to users",
+        "Defines a project_members junction table with user_id, project_id, and role column",
+        "Defines a tags table",
+        "Defines a junction table for the N:N relationship between projects and tags",
+        "Defines a tasks table with project_id FK, assignee_id FK (nullable), and parent_task_id self-reference (nullable)",
+        "Defines a junction table for the N:N relationship between tasks and tags",
+        "Self-referencing parent_task_id is correctly identified as nullable FK to tasks.id",
+        "All tables include id, created_at, updated_at standard columns"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "我有一个简单的需求：做一个类似外卖平台的系统。\n\n商家可以入驻平台，创建自己的店铺，上传菜品菜单。顾客可以浏览店铺、下单点餐。一个订单只能属于一个店铺，但可以包含多个菜品（数量不同）。订单需要记录配送地址、状态流转（待支付→已支付→制作中→配送中→已完成/已取消）。顾客可以对完成的订单进行评价。\n\n另外需要支持优惠券功能，商家可以创建优惠券，顾客领取后在下单时使用。\n\n帮我设计数据库。",
+      "expected_output": "Markdown document for a food delivery platform schema. Should include: merchants/shops, menu_items, customers (or unified users), orders, order_items (junction with quantity), delivery addresses, order status tracking, reviews, coupons, and coupon_claims/user_coupons. The order_items table must include a quantity field. Coupon system needs both coupon definition and user claiming/usage tracking.",
+      "files": [],
+      "expectations": [
+        "Output is a valid Markdown document with clear section headings",
+        "Contains a relationship analysis table",
+        "Contains a mermaid erDiagram code block",
+        "Defines tables for merchants/shops with menu items (1:N)",
+        "Defines an orders table with shop FK, customer FK, status field, and delivery address",
+        "Defines an order_items junction table with order_id, menu_item_id, AND a quantity column",
+        "Order status field accommodates the specified workflow states",
+        "Defines a reviews/ratings table linked to completed orders",
+        "Defines a coupons table owned by merchants",
+        "Defines a mechanism for users to claim and use coupons (junction table or similar)",
+        "All tables include id, created_at, updated_at standard columns",
+        "Contains a Design Notes section addressing the coupon usage tracking approach"
+      ]
+    }
+  ]
+}
