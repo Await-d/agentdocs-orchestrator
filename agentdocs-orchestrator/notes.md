@@ -57,13 +57,15 @@ Pending → Running → Completed
 
 ### 5. Claude CLI Integration Methods
 ```bash
-# Basic call
+# Basic call (bash/zsh)
 claude -p "Task description" --output-format json
 
-# Call with context
+# Call with context (bash/zsh)
 claude -p "$(cat context.md)\n\nTask description"
+```
 
-# Background execution
+```powershell
+# Background execution (PowerShell only)
 Start-Process claude -ArgumentList '-p "Task description"' -NoNewWindow
 ```
 
@@ -75,7 +77,7 @@ Start-Process claude -ArgumentList '-p "Task description"' -NoNewWindow
 ## File Structure Design
 
 ```
-distributed-task-orchestrator/
+agentdocs-orchestrator/
 ├── SKILL.md                 # Skill main entry
 ├── workflow.md              # Detailed workflow description
 ├── templates.md             # Task plan and status table templates
@@ -115,26 +117,30 @@ distributed-task-orchestrator/
 - **Auto-create workflow document** if complex task lacks planning
 - Break down into atomic tasks
 
-### Phase 2: Agent Assignment and Status Marking
+### Phase 2: Agent Assignment and Status Marking *(full orchestration only)*
 - Assign Agent IDs
-- Create task-specific runtime directory: `runtime/<task-id>/`
-- Create status table in `runtime/<task-id>/master_plan.md`
+- Create task-specific runtime directory: `.agentdocs/runtime/<task-id>/`
+- Create status table in `.agentdocs/runtime/<task-id>/master_plan.md`
 - Generate task file for each Agent
+- *(Lightweight mode: skip this phase — dispatch via `task()` or run inline)*
 
-### Phase 3: Parallel Execution
+### Phase 3: Parallel Execution *(full orchestration only)*
 - Option: Sequential execution (in-context)
 - Option: Launch subprocesses via CLI
 - Record execution logs
+- *(Lightweight mode: use `task()` or run sequentially in context, no result files needed)*
 
-### Phase 4: Result Aggregation and Integration
-- Collect all Agent results from `runtime/<task-id>/results/`
+### Phase 4: Result Aggregation and Integration *(full orchestration only)*
+- Collect all Agent results from `.agentdocs/runtime/<task-id>/results/`
 - Merge according to dependencies
-- Generate final output
+- Generate final output at `.agentdocs/runtime/<task-id>/final_output.md`
+- *(Lightweight mode: synthesize results directly in context)*
 
 ### Phase 5: Status Sync and Cleanup
+- **Extract durable memory first** before archiving workflow doc
 - **Update workflow document TODOs** after each task completion
-- Move completed workflow docs to `done/`
-- Clean up specific task's runtime: `rm -rf runtime/<task-id>/`
+- Move completed workflow docs to `.agentdocs/workflow/done/`
+- **Full orchestration only:** Clean up specific task's runtime: `rm -rf .agentdocs/runtime/<task-id>/`
 
 ## Key Integration Points
 
@@ -147,20 +153,20 @@ distributed-task-orchestrator/
 When user submits complex task without planning:
 1. Create workflow document: `.agentdocs/workflow/YYMMDD-task-name.md`
 2. Register in `index.md` under "Current Task Documents"
-3. Create runtime directory: `.agentdocs/runtime/YYMMDD-task-name/`
-4. Proceed with distributed execution
+3. **Full orchestration only (5+ steps):** Create runtime directory: `.agentdocs/runtime/YYMMDD-task-name/` and proceed with distributed execution
+4. **Lightweight mode (3–4 steps):** Skip runtime dir — dispatch tasks via `task()` or sequentially in context
 
-### Status Synchronization
+### Status Synchronization *(full orchestration only)*
 After each atomic task completes:
-1. Update `runtime/<task-id>/master_plan.md` status table
+1. Update `.agentdocs/runtime/<task-id>/master_plan.md` status table
 2. Mark corresponding TODO in workflow document as done
-3. Check if all TODOs complete → archive workflow doc
+3. Check if all TODOs complete → run memory sync → then archive workflow doc
 
 ### Cleanup Strategy
 After specific task completion:
 1. Move workflow doc to `done/`
 2. Remove from "Current Task Documents" in `index.md`
-3. Delete only that task's runtime: `rm -rf runtime/<task-id>/`
+3. Delete only that task's runtime: `rm -rf .agentdocs/runtime/<task-id>/`
 
 ### Language Adaptation
 - Detect user's language from their request

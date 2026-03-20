@@ -2,6 +2,8 @@
 
 ## Complete Execution Flow Diagram
 
+> **Note:** Phases 2–4 below describe the **full orchestration path** (5+ steps). For lightweight mode (3–4 steps), skip Phases 2–4 runtime artifacts and track tasks inline.
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    User Submits Complex Request                  │
@@ -15,7 +17,7 @@
 │ │ 1.3 Break down into atomic tasks                           │   │
 │ │ 1.4 Define Input/Output for each task                      │   │
 │ └───────────────────────────────────────────────────────────┘   │
-│ 📄 Output: .agentdocs/runtime/<task-id>/master_plan.md                   │
+│ 📄 Output: .agentdocs/workflow/<task-id>.md                               │
 └─────────────────────────────────┬───────────────────────────────┘
                                   ▼
 ┌─────────────────────────────────────────────────────────────────┐
@@ -151,7 +153,8 @@ Read code ├─→ [T-03: Security scan] ────┤
 ### 2.1 Agent ID Assignment Rules
 
 ```
-Agent-{sequence}
+Display label: Agent-{sequence}
+Filename stem: agent-{sequence}
 Sequence: 01, 02, 03, ... (two-digit zero-padded)
 ```
 
@@ -204,6 +207,13 @@ def schedule_tasks(tasks, dependencies):
             if task not in completed and task not in running:
                 if all_deps_complete(task, completed):
                     ready_queue.append(task)
+    
+    # Deadlock / circular dependency detection
+    remaining = [t for t in tasks if t not in completed]
+    if remaining:
+        for t in remaining:
+            mark_failed(t, reason="Circular dependency or unresolvable blocker")
+        raise RuntimeError(f"Deadlock detected: {len(remaining)} tasks could not complete: {remaining}")
 ```
 
 ### 3.2 Sequential Execution Output Format
@@ -407,7 +417,9 @@ For bug-fix tasks, also include TDD evidence:
 
 ## State Persistence Specification
 
-Every state change must update `master_plan.md`:
+**Full orchestration only:** every state change must update `.agentdocs/runtime/<task-id>/master_plan.md`.
+
+**Lightweight mode:** record state directly in the workflow doc or current context instead.
 
 ```markdown
 ## Execution Log
@@ -453,22 +465,9 @@ After each task completion, synchronize status to workflow document:
 - [ ] T-04: Add tests
 ```
 
-### 5.2 Check Task Completion
+### 5.2 Durable Memory Extraction (Required — do BEFORE archiving)
 
-When all TODOs in workflow document are marked as done:
-
-1. **Move to archive**:
-   ```bash
-   mv .agentdocs/workflow/YYMMDD-task-name.md .agentdocs/workflow/done/
-   ```
-
-2. **Update index.md**:
-   - Remove from "Current Task Documents" section
-   - Optionally add to "Completed Tasks" section with brief summary
-
-### 5.2.1 Durable Memory Extraction (Required)
-
-After task completion, extract reusable knowledge into `.agentdocs/index.md`.
+Extract reusable knowledge into `.agentdocs/index.md` **before** moving the workflow doc to `done/`.
 
 **Write to these sections only:**
 - `Architecture Decisions`
@@ -484,21 +483,34 @@ After task completion, extract reusable knowledge into `.agentdocs/index.md`.
 
 **Automatic sync sequence:**
 1. Read `.agentdocs/index.md` memory sections
-2. Read task artifacts (`workflow/<task-id>.md` + `runtime/<task-id>/final_output.md` when available)
+2. Read task artifacts (`.agentdocs/workflow/<task-id>.md` + `.agentdocs/runtime/<task-id>/final_output.md` if it exists, or `.agentdocs/workflow/done/<task-id>.md` as fallback)
 3. Use `templates.md` → `### Memory Sync Prompt Template` to generate update/add/skip lists
 4. Apply only validated updates to `index.md`
 5. Record in workflow notes: `Memory sync: completed` (or blocker reason)
+
+### 5.3 Check Task Completion
+
+After memory sync, when all TODOs in workflow document are marked as done:
+
+1. **Move to archive**:
+   ```bash
+   mv .agentdocs/workflow/YYMMDD-task-name.md .agentdocs/workflow/done/
+   ```
+
+2. **Update index.md**:
+   - Remove from "Current Task Documents" section
+   - Optionally add to "Completed Tasks" section with brief summary
 
 Example:
 
 ```markdown
 ## Known Pitfalls
-- [2026-02-26] Symptom: flaky parallel write failures → Root cause: shared output path in non-isolated runtime → Fix: always use `runtime/<task-id>/results/`.
+- [2026-02-26] Symptom: flaky parallel write failures → Root cause: shared output path in non-isolated runtime → Fix: always use `.agentdocs/runtime/<task-id>/results/`.
 ```
 
-### 5.3 Cleanup Task Runtime
+### 5.4 Cleanup Task Runtime
 
-**Critical**: Only clean up the specific task's runtime directory:
+**Critical**: Only clean up the specific task's runtime directory (full orchestration only — lightweight mode has no runtime dir to clean):
 
 ```bash
 # Clean up this task's runtime
@@ -508,13 +520,14 @@ rm -rf .agentdocs/runtime/YYMMDD-task-name/
 # Each task has isolated runtime
 ```
 
-### 5.4 Documentation Output Restrictions
+### 5.5 Documentation Output Restrictions
 
 **Important**: Maintain minimal documentation footprint:
 
-- ✅ **DO**: Consolidate all outputs in `runtime/<task-id>/final_output.md`
+- ✅ **DO (full orchestration)**: Consolidate all outputs in `.agentdocs/runtime/<task-id>/final_output.md`
+- ✅ **DO (lightweight mode)**: Synthesize results in context; optionally record key outcome notes in the workflow doc
 - ✅ **DO**: Update workflow document TODOs
-- ✅ **DO**: Clean up runtime after task completion
+- ✅ **DO (full orchestration only)**: Clean up runtime after task completion
 - ❌ **DO NOT**: Create additional summary documents in project root
 - ❌ **DO NOT**: Generate separate README or documentation files
 - ❌ **DO NOT**: Create feature summaries unless explicitly requested
@@ -522,19 +535,20 @@ rm -rf .agentdocs/runtime/YYMMDD-task-name/
 
 **Rationale**:
 - Workflow document captures planning and decisions (persistent)
-- Runtime final_output.md captures execution results (temporary)
+- Runtime final_output.md captures full-orchestration execution results (temporary)
+- Lightweight mode outputs stay in context; workflow doc captures durable notes
 - Additional documentation creates clutter and confusion
 - Keep the project clean and focused on actual code/content
 
-### 5.5 Self-Evolution Rule Sync (Required)
+### 5.6 Self-Evolution Rule Sync (Required)
 
 When the user corrects process rules:
 
-- Append or update the rule in project rule documentation (README/SKILL/workflow templates).
-- Mark the new rule as default for subsequent tasks.
+- Write or update the rule in **the target project's** `.agentdocs/local-rules.md` (do NOT modify the skill's own `RULES.md`, `SKILL.md`, or `workflow.md` — those live in the skill directory and are not project-editable).
+- Mark the new rule as default for subsequent tasks in this project.
 - Note the rule update in the current task's execution log.
 
-### 5.6 Final Checklist
+### 5.7 Final Checklist
 
 Before considering task complete:
 
@@ -546,6 +560,6 @@ Before considering task complete:
 - [ ] All workflow TODOs marked as done
 - [ ] Workflow document moved to `done/` directory
 - [ ] Index.md updated (removed from current tasks)
-- [ ] Task runtime directory cleaned up
+- [ ] Task runtime directory cleaned up (full orchestration only — skip for lightweight mode)
 - [ ] No additional documentation files created
 - [ ] Project directory remains clean

@@ -29,7 +29,7 @@ Task received
     ├── ≤2 steps, strictly sequential
     │   → Execute directly. No .agentdocs needed.
     │
-    ├── 3–5 steps, some parallelizable
+    ├── 3–4 steps, some parallelizable
     │   → Lightweight mode:
     │     1. Create workflow doc only (no runtime dir)
     │     2. Execute via task() or sequentially in context
@@ -61,8 +61,8 @@ Task received
 ```
 
 **Key distinction:**
-- `workflow/` — persistent planning & decisions (commit to git)
-- `runtime/<task-id>/` — temporary execution artifacts (add to `.gitignore`)
+- `.agentdocs/workflow/` — persistent planning & decisions (commit to git)
+- `.agentdocs/runtime/<task-id>/` — temporary execution artifacts (add to `.gitignore`)
 
 **Git setup:**
 ```bash
@@ -90,8 +90,10 @@ const r2 = background_output(task_id=t2.task_id)
 
 ### Mode B: Sequential Execution (in-context)
 
-Execute subtasks one by one in the current context. Write results to
-`runtime/<task-id>/results/`. This is **real execution**, not a simulation.
+Execute subtasks one by one in the current context. This is **real execution**, not a simulation.
+
+- **Full orchestration**: write results to `.agentdocs/runtime/<task-id>/results/`
+- **Lightweight mode**: synthesize results directly in the current context — no result files needed
 
 Use when: tasks must share context, or the orchestration itself is the valuable output.
 
@@ -101,7 +103,9 @@ Use when: tasks must share context, or the orchestration itself is the valuable 
 # Linux/Mac
 TASK_ID="YYMMDD-task-name"
 RUNTIME_PATH=".agentdocs/runtime/$TASK_ID"
-parallel claude -p "$(cat {})" ::: $RUNTIME_PATH/agent_tasks/*.md
+mkdir -p "$RUNTIME_PATH/results"
+export RUNTIME_PATH
+parallel 'agent_id=$(basename {} .md); claude -p "$(cat {})" > "$RUNTIME_PATH/results/${agent_id}-result.md" 2>&1' ::: "$RUNTIME_PATH"/agent_tasks/*.md
 ```
 
 See [cli-integration.md](cli-integration.md) for full reference.
@@ -120,32 +124,37 @@ See [cli-integration.md](cli-integration.md) for full reference.
 
 ### Phase 2️⃣ Agent Assignment
 
-- Create task-specific runtime directory: `runtime/<task-id>/`
-- Create `master_plan.md` with task decomposition and status table
-- Generate agent task files (Mode B/C) OR dispatch via `task()` (Mode A)
+> **Lightweight mode (3–4 steps):** Skip runtime dir. Track tasks inline or in the workflow doc only. Dispatch directly via `task()` or execute sequentially in context — no `master_plan.md` or `agent_tasks/` files needed.
+>
+> **Full orchestration (5+ steps):** Create task-specific runtime directory: `.agentdocs/runtime/<task-id>/`, create `master_plan.md` with task decomposition and status table, generate agent task files (Mode B/C) OR dispatch via `task()` (Mode A).
 
 **Status icons:** 🟡 Pending | 🔵 Running | ✅ Completed | ❌ Failed | ⏸️ Waiting
 
 ### Phase 3️⃣ Parallel Execution
 
-- Mode A: `task(run_in_background=true)` + `background_output()`
-- Mode B: Sequential execution in context, write results to `results/`
-- Mode C: `claude -p` CLI scripts (see [cli-integration.md](cli-integration.md))
+**Lightweight mode:** Dispatch tasks inline via `task()` (Mode A) or run sequentially in context (Mode B). No result files or status table needed — track progress in the workflow doc or in context.
 
-Track all status changes in `master_plan.md`.
+**Full orchestration only:**
+- Mode A: `task(run_in_background=true)` + `background_output()`
+- Mode B: Sequential execution in context, write results to `.agentdocs/runtime/<task-id>/results/`
+- Mode C: `claude -p` CLI scripts (see [cli-integration.md](cli-integration.md))
+- Track all status changes in `.agentdocs/runtime/<task-id>/master_plan.md`
 
 ### Phase 4️⃣ Result Aggregation
 
-- Collect results from `runtime/<task-id>/results/` (or via `background_output()`)
+**Lightweight mode:** Synthesize results directly in context; no file aggregation needed.
+
+**Full orchestration only:**
+- Collect results from `.agentdocs/runtime/<task-id>/results/` (or via `background_output()`)
 - Merge in dependency order
-- Generate `final_output.md`
+- Generate `.agentdocs/runtime/<task-id>/final_output.md`
 
 ### Phase 5️⃣ Status Sync, Memory Sync, and Cleanup
 
-1. Update workflow TODOs — mark completed items (`- [x] T-01 ✅`)
-2. If all TODOs done: move workflow doc to `done/`, update `index.md`
-3. Extract durable memory from this task and append to `index.md` (see Memory Protocol)
-4. Cleanup: `rm -rf .agentdocs/runtime/YYMMDD-task-name/`
+1. Extract durable memory and append to `.agentdocs/index.md` (see Memory Protocol) — **do this before archiving**
+2. Update workflow TODOs — mark completed items (`- [x] T-01 ✅`)
+3. If all TODOs done: move workflow doc to `.agentdocs/workflow/done/`, update `index.md`
+4. **Full orchestration only:** Cleanup runtime dir: `rm -rf .agentdocs/runtime/YYMMDD-task-name/`
 
 ---
 
@@ -197,7 +206,7 @@ Do NOT write:
 
 At task completion, run a small memory-sync pass before cleanup:
 1. Read current memory sections in `.agentdocs/index.md`
-2. Extract candidate entries from `workflow/<task-id>.md` and `runtime/<task-id>/final_output.md`
+2. Extract candidate entries from `.agentdocs/workflow/<task-id>.md` and `.agentdocs/runtime/<task-id>/final_output.md` (or `.agentdocs/workflow/done/<task-id>.md` as fallback)
 3. Apply dedup/update rules (update existing entries when semantically similar)
 4. Write only net-new durable memory back to `index.md`
 5. Add one line in workflow notes: `Memory sync: completed`
@@ -272,8 +281,8 @@ After code changes, always attach:
 ## Language Adaptation
 
 All documents use the user's language:
-- User speaks Chinese → `workflow/260112-修复音频播放器.md` with Chinese content
-- User speaks English → `workflow/260112-fix-audio-player.md` with English content
+- User speaks Chinese → `.agentdocs/workflow/260112-修复音频播放器.md` with Chinese content
+- User speaks English → `.agentdocs/workflow/260112-fix-audio-player.md` with English content
 
 ---
 
@@ -298,13 +307,13 @@ Apply these rules when constructing inter-agent prompts:
 | < 200 lines | Pass full content inline |
 | 200–500 lines | Pass full content with a summary header |
 | > 500 lines | **Summarize first**: extract key findings (max 100 lines), pass summary + file path reference |
-| > 1000 lines | Write to `results/agent-XX-result.md`, pass only the file path to downstream agents |
+| > 1000 lines | Write to `.agentdocs/runtime/<task-id>/results/agent-XX-result.md`, pass only the file path to downstream agents |
 
 **Summarization trigger** — before injecting a previous agent's result, check:
 ```
 If len(result) > 500 lines:
     summary = extract_key_findings(result)   # decisions, errors, metrics, file list
-    inject = summary + "\n\nFull result: runtime/<task-id>/results/agent-XX-result.md"
+    inject = summary + "\n\nFull result: .agentdocs/runtime/<task-id>/results/agent-XX-result.md"
 Else:
     inject = result
 ```
@@ -316,13 +325,18 @@ Always extract only what the downstream agent needs to proceed.
 
 ## Error Handling
 
-When an agent/task fails:
-1. Log in `master_plan.md` error table
+**Full orchestration mode:**
+1. Log in `.agentdocs/runtime/<task-id>/master_plan.md` error table
 2. Update workflow doc with blocker notes
 3. Retry up to 3 times with exponential backoff
 4. Mark as `❌ Failed` if all retries exhausted
 
 Task isolation rule: only handle errors from the current task's runtime. Do not modify other concurrent tasks' runtimes.
+
+**Lightweight mode:**
+1. Note the blocker in the workflow doc or current context
+2. Retry inline or re-dispatch the failed subtask via `task()`
+3. If unresolvable: mark the subtask failed in the workflow doc and proceed or stop
 
 ---
 

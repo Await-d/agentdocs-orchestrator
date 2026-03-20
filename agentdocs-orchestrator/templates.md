@@ -379,6 +379,11 @@ if (-not (Test-Path $ResultDir)) {
 # Get all task files
 $taskFiles = Get-ChildItem "$TaskDir/*.md" | Sort-Object Name
 
+if ($taskFiles.Count -eq 0) {
+    Write-Warning "No task files found in $TaskDir"
+    return
+}
+
 Write-Host "═══════════════════════════════════════════════════" -ForegroundColor Cyan
 Write-Host "       🚀 Distributed Task Orchestration - Agent Executor" -ForegroundColor Cyan
 Write-Host "═══════════════════════════════════════════════════" -ForegroundColor Cyan
@@ -388,21 +393,31 @@ Write-Host "Parallel mode: $Parallel (Max concurrency: $MaxJobs)" -ForegroundCol
 Write-Host ""
 
 if ($Parallel) {
-    # Parallel execution
-    $jobs = foreach ($file in $taskFiles) {
-        $agentId = $file.BaseName
-        Start-Job -Name $agentId -ScriptBlock {
-            param($taskPath, $resultPath, $agentName)
-            $task = Get-Content $taskPath -Raw
-            $startTime = Get-Date
-            
-            try {
-                $result = claude -p $task 2>&1
-                $endTime = Get-Date
-                $duration = ($endTime - $startTime).TotalSeconds
+    # Parallel execution with MaxJobs throttling
+    $pending = [System.Collections.Generic.Queue[object]]::new()
+    foreach ($file in $taskFiles) { $pending.Enqueue($file) }
+    $jobs = @()
+
+    while ($pending.Count -gt 0 -or $jobs.Count -gt 0) {
+        while ($pending.Count -gt 0 -and $jobs.Count -lt $MaxJobs) {
+            $file = $pending.Dequeue()
+            $agentId = $file.BaseName
+            $job = Start-Job -Name $agentId -ScriptBlock {
+                param($taskPath, $resultPath, $agentName)
+                $task = Get-Content $taskPath -Raw
+                $startTime = Get-Date
                 
-                # Write result
-                @"
+                try {
+                    $result = claude -p $task 2>&1
+                    $exitCode = $LASTEXITCODE
+                    if ($exitCode -ne 0) {
+                        throw "claude exited with code $exitCode"
+                    }
+                    $endTime = Get-Date
+                    $duration = ($endTime - $startTime).TotalSeconds
+                    
+                    # Write result
+                    @"
 # Agent Execution Result
 
 ## Execution Info
@@ -416,16 +431,16 @@ if ($Parallel) {
 
 $result
 "@ | Out-File $resultPath -Encoding UTF8
-                
-                return @{
-                    Agent = $agentName
-                    Status = "Success"
-                    Duration = $duration
+                    
+                    return @{
+                        Agent = $agentName
+                        Status = "Success"
+                        Duration = $duration
+                    }
                 }
-            }
-            catch {
-                $endTime = Get-Date
-                @"
+                catch {
+                    $endTime = Get-Date
+                    @"
 # Agent Execution Result
 
 ## Execution Info
@@ -435,34 +450,34 @@ $result
 - End: $endTime
 - Error: $($_.Exception.Message)
 "@ | Out-File $resultPath -Encoding UTF8
-                
-                return @{
-                    Agent = $agentName
-                    Status = "Failed"
-                    Error = $_.Exception.Message
+                    
+                    return @{
+                        Agent = $agentName
+                        Status = "Failed"
+                        Error = $_.Exception.Message
+                    }
                 }
+            } -ArgumentList $file.FullName, "$ResultDir/$agentId-result.md", $agentId
+            $jobs += $job
+        }
+
+        $finished = Wait-Job -Job $jobs -Any
+        if ($null -ne $finished) {
+            $result = Receive-Job $finished
+            if ($result.Status -eq "Success") {
+                Write-Host "✅ $($result.Agent): Success ($([math]::Round($result.Duration, 2))s)" -ForegroundColor Green
+            } else {
+                Write-Host "❌ $($result.Agent): Failed - $($result.Error)" -ForegroundColor Red
             }
-        } -ArgumentList $file.FullName, "$ResultDir/$agentId-result.md", $agentId
+            Remove-Job $finished
+            $jobs = @($jobs | Where-Object { $_.Id -ne $finished.Id })
+        }
     }
-    
-    Write-Host "Waiting for all tasks to complete..." -ForegroundColor Yellow
-    $jobs | Wait-Job | Out-Null
     
     Write-Host ""
     Write-Host "═══════════════════════════════════════════════════" -ForegroundColor Green
     Write-Host "                   Execution Complete" -ForegroundColor Green
     Write-Host "═══════════════════════════════════════════════════" -ForegroundColor Green
-    
-    foreach ($job in $jobs) {
-        $result = Receive-Job $job
-        if ($result.Status -eq "Success") {
-            Write-Host "✅ $($result.Agent): Success ($([math]::Round($result.Duration, 2))s)" -ForegroundColor Green
-        } else {
-            Write-Host "❌ $($result.Agent): Failed - $($result.Error)" -ForegroundColor Red
-        }
-    }
-    
-    $jobs | Remove-Job
 }
 else {
     # Serial execution
@@ -475,6 +490,10 @@ else {
         
         try {
             $result = claude -p $task 2>&1
+            $exitCode = $LASTEXITCODE
+            if ($exitCode -ne 0) {
+                throw "claude exited with code $exitCode"
+            }
             $endTime = Get-Date
             $duration = ($endTime - $startTime).TotalSeconds
             
@@ -482,6 +501,17 @@ else {
             Write-Host "  ✅ Completed ($([math]::Round($duration, 2))s)" -ForegroundColor Green
         }
         catch {
+            $endTime = Get-Date
+            @"
+# Agent Execution Result
+
+## Execution Info
+- Agent: $agentId
+- Status: ❌ Failed
+- Start: $startTime
+- End: $endTime
+- Error: $($_.Exception.Message)
+"@ | Out-File "$ResultDir/$agentId-result.md" -Encoding UTF8
             Write-Host "  ❌ Failed: $($_.Exception.Message)" -ForegroundColor Red
         }
     }
@@ -519,8 +549,22 @@ fi
 TASK_DIR=".agentdocs/runtime/$TASK_ID/agent_tasks"
 RESULT_DIR=".agentdocs/runtime/$TASK_ID/results"
 
+if $PARALLEL && ! command -v parallel >/dev/null 2>&1; then
+    echo "Error: GNU parallel is required for -p mode"
+    exit 1
+fi
+
 # Ensure result directory exists
 mkdir -p "$RESULT_DIR"
+
+shopt -s nullglob
+task_files=("$TASK_DIR"/*.md)
+shopt -u nullglob
+
+if [ ${#task_files[@]} -eq 0 ]; then
+    echo "No task files found in $TASK_DIR"
+    exit 0
+fi
 
 echo "═══════════════════════════════════════════════════"
 echo "       🚀 Distributed Task Orchestration - Agent Executor"
@@ -528,7 +572,7 @@ echo "════════════════════════�
 echo ""
 echo "Task ID: $TASK_ID"
 
-task_count=$(ls -1 "$TASK_DIR"/*.md 2>/dev/null | wc -l)
+task_count=${#task_files[@]}
 echo "Found $task_count tasks"
 echo "Parallel mode: $PARALLEL (Max concurrency: $MAX_JOBS)"
 echo ""
@@ -553,9 +597,9 @@ export -f run_agent
 export RESULT_DIR
 
 if $PARALLEL; then
-    ls -1 "$TASK_DIR"/*.md | parallel -j "$MAX_JOBS" run_agent {}
+    printf '%s\n' "${task_files[@]}" | parallel -j "$MAX_JOBS" run_agent {}
 else
-    for task_file in "$TASK_DIR"/*.md; do
+    for task_file in "${task_files[@]}"; do
         run_agent "$task_file"
     done
 fi
@@ -580,6 +624,7 @@ param(
 
 $baseDir = ".agentdocs"
 $runtimeDir = "$baseDir/runtime/$TaskId"
+$workflowPath = "$baseDir/workflow/$TaskId.md"
 
 # Create directory structure
 $dirs = @(
@@ -598,12 +643,37 @@ foreach ($dir in $dirs) {
     }
 }
 
+# Create workflow doc stub
+$workflowDoc = @"
+# .agentdocs/workflow/$TaskId.md
+
+## Task Overview
+[Fill in brief description]
+
+## Current Analysis
+[Fill in problem analysis, constraints, considerations]
+
+## Solution Design
+[Fill in approach and key decisions]
+
+## Implementation Plan
+
+### Phase 1: [Phase Name]
+- [ ] T-01: [Task description]
+
+## Notes
+[Important observations, blockers, decisions]
+"@
+
+$workflowDoc | Out-File $workflowPath -Encoding UTF8
+Write-Host "✅ Created workflow doc: $workflowPath" -ForegroundColor Green
+
 # Create master plan file
 $masterPlan = @"
 # 🎯 Distributed Task Plan: $TaskId
 
 ## Workflow Reference
-\`workflow/$TaskId.md\`
+\`.agentdocs/workflow/$TaskId.md\`
 
 ## Original Request
 > [Fill in user request here]
@@ -641,16 +711,28 @@ Write-Host "✅ Created master plan: $runtimeDir/master_plan.md" -ForegroundColo
 
 Write-Host ""
 Write-Host "🎉 Initialization complete!" -ForegroundColor Cyan
-Write-Host "Next step: Edit $runtimeDir/master_plan.md to define tasks" -ForegroundColor Yellow
+Write-Host "Next step: Edit $workflowPath and $runtimeDir/master_plan.md to define tasks" -ForegroundColor Yellow
 ```
 
 ---
 
 ## 7. Durable Memory Templates
 
-### `.agentdocs/index.md` Memory Sections Template
+### `.agentdocs/index.md` Full Template
+
+This is the canonical structure for the knowledge entry point. Create this file when setting up a new project:
 
 ```markdown
+# .agentdocs/index.md
+
+## Current Task Documents
+<!-- Add active workflow docs here -->
+<!-- Format: - [YYMMDD-task-name](workflow/YYMMDD-task-name.md) — brief description -->
+
+## Completed Tasks
+<!-- Optionally summarize completed tasks here -->
+<!-- Format: - [YYMMDD-task-name] — outcome summary -->
+
 ## Architecture Decisions
 - [YYYY-MM-DD] [Decision] — [Why] — [Scope/Impact]
 
@@ -666,13 +748,23 @@ Write-Host "Next step: Edit $runtimeDir/master_plan.md to define tasks" -Foregro
 
 ### Memory Entry Template (append/update)
 
+Use the concise 1–2 line bullet format matching the four `index.md` sections:
+
 ```markdown
-### [YYYY-MM-DD] [Memory Type]
-- Context: [Where this was discovered]
-- Memory: [The reusable knowledge]
-- Action: [What to do next time]
-- Scope: [Which module/path this applies to]
+# Architecture Decisions
+- [YYYY-MM-DD] [Decision] — [Why] — [Scope/Impact]
+
+# Coding Conventions
+- [Rule] — [Example path]
+
+# Known Pitfalls
+- [YYYY-MM-DD] [Symptom] → [Root cause] → [Fix]
+
+# Global Important Memory
+- [Long-lived constraint or preference]
 ```
+
+> Do NOT use multi-line structured entries — keep each item to 1–2 lines max.
 
 ### Memory Extraction Checklist
 

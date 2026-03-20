@@ -162,7 +162,7 @@ Scan the project's src/ directory, read all TypeScript files (.ts, .tsx)
 │    → Read Agent-02,03,04 results
 │    → Sort issues by priority
 │    → Generate Markdown report
-│ 📤 Output: final_report.md
+│ 📤 Output: .agentdocs/runtime/260112-code-analysis/final_output.md
 │ ✅ Completed (1.5s)
 └──────────────────────────────────────────────────────────────────
 ```
@@ -241,18 +241,26 @@ No dependencies, all translation tasks can be fully parallelized
 
 ```powershell
 # All Agents launch simultaneously
+$taskId = (Get-Date -Format 'yyMMdd') + "-translate"
+$resultDir = ".agentdocs/runtime/$taskId/results"
+New-Item -ItemType Directory -Path $resultDir -Force | Out-Null
+
 $docs = Get-ChildItem "docs/*.md"
 $jobs = foreach ($doc in $docs) {
     $index = [array]::IndexOf($docs, $doc) + 1
-    Start-Job -Name "Agent-0$index" -ScriptBlock {
-        param($file)
+    $agentId = "agent-{0:D2}" -f $index
+    Start-Job -Name $agentId -ScriptBlock {
+        param($file, $resultPath)
         $content = Get-Content $file -Raw
-        claude -p "Translate the following English content to Chinese, maintain Markdown format: $content"
-    } -ArgumentList $doc.FullName
+        $result = claude -p "Translate the following English content to Chinese, maintain Markdown format: $content"
+        $result | Out-File $resultPath -Encoding UTF8
+    } -ArgumentList $doc.FullName, "$resultDir/$agentId-result.md"
 }
 
 # Wait for all to complete in parallel
-$jobs | Wait-Job | Receive-Job
+$jobs | Wait-Job | Out-Null
+$jobs | Remove-Job
+Write-Host "Results saved to $resultDir"
 ```
 
 ### Execution Result
@@ -365,12 +373,14 @@ Parallel efficiency: 4x speedup
 
 ---
 
-## Example 4: Real Execution Using Claude CLI
+## Example 4: Real Execution Using Claude CLI (Full Orchestration)
+
+> **Note:** This example uses full orchestration mode (runtime dir + agent files). It decomposes the request into multiple tasks via claude, then runs them in parallel. Use this for tasks with 5+ steps or multiple independent streams.
 
 ### Complete PowerShell Script
 
 ```powershell
-# orchestrate.ps1 - Distributed Task Orchestration Example
+# orchestrate.ps1 - Distributed Task Orchestration Example (Full Orchestration)
 
 param(
     [string]$Request = "Analyze current directory code structure"
@@ -397,8 +407,8 @@ Output format (JSON):
 }
 "@
 
-$taskJson = claude -p $decomposePrompt 2>$null
-$tasks = $taskJson | ConvertFrom-Json
+$taskJson = claude --output-format json -p $decomposePrompt 2>$null
+try { $tasks = $taskJson | ConvertFrom-Json } catch { Write-Error "Failed to parse JSON from claude output: $_"; exit 1 }
 
 Write-Host "  ✅ Decomposition complete: $($tasks.tasks.Count) tasks" -ForegroundColor Green
 
@@ -406,7 +416,19 @@ Write-Host "  ✅ Decomposition complete: $($tasks.tasks.Count) tasks" -Foregrou
 Write-Host ""
 Write-Host "🤖 Phase 2: Assigning agents..." -ForegroundColor Yellow
 
-$orchestratorDir = ".agentdocs"
+$taskId = (Get-Date -Format 'yyMMdd') + "-orchestrate"
+$orchestratorDir = ".agentdocs/runtime/$taskId"
+$workflowPath = ".agentdocs/workflow/$taskId.md"
+New-Item -ItemType Directory -Path ".agentdocs/workflow" -Force | Out-Null
+@"
+# .agentdocs/workflow/$taskId.md
+
+## Task Overview
+$Request
+
+## Implementation Plan
+- [ ] Run distributed orchestration via orchestrate.ps1
+"@ | Out-File $workflowPath -Encoding UTF8
 New-Item -ItemType Directory -Path "$orchestratorDir/agent_tasks" -Force | Out-Null
 New-Item -ItemType Directory -Path "$orchestratorDir/results" -Force | Out-Null
 
@@ -478,12 +500,32 @@ Requirements: Generate executive summary and key findings
 "@
 
 $finalReport = claude -p $mergePrompt 2>$null
-$finalReport | Out-File "$orchestratorDir/final_output.md" -Encoding UTF8
+$finalReport | Out-File ".agentdocs/runtime/$taskId/final_output.md" -Encoding UTF8
 
 Write-Host "  ✅ Report generation complete" -ForegroundColor Green
 
-# Cleanup
+# Cleanup jobs
 $jobs | Remove-Job
+
+# Phase 5: Status sync, memory sync, and cleanup
+Write-Host ""
+Write-Host "🧠 Phase 5: Syncing status and cleaning up..." -ForegroundColor Yellow
+
+# Update workflow TODO (manual step — mark items done in .agentdocs/workflow/$taskId.md)
+Write-Host "  ✏️  Update .agentdocs/workflow/$taskId.md — mark all TODOs as done" -ForegroundColor Gray
+
+# Memory sync reminder
+Write-Host "  💾 Extract durable memory into .agentdocs/index.md before archiving" -ForegroundColor Gray
+
+# Archive workflow doc
+# mv ".agentdocs/workflow/$taskId.md" ".agentdocs/workflow/done/$taskId.md"
+
+# Review final report before cleanup
+Write-Host "  👀 Review the final report before removing runtime artifacts" -ForegroundColor Gray
+
+# Optional cleanup after report has been reviewed or copied elsewhere
+# Remove-Item -Recurse -Force $orchestratorDir
+# Write-Host "  🗑️  Runtime dir cleaned: $orchestratorDir" -ForegroundColor Gray
 
 # Output summary
 Write-Host ""
@@ -491,8 +533,7 @@ Write-Host "══════════════════════�
 Write-Host "                   ✅ Execution Complete" -ForegroundColor Green
 Write-Host "═══════════════════════════════════════════════════" -ForegroundColor Green
 Write-Host ""
-Write-Host "📁 Results directory: $orchestratorDir" -ForegroundColor Yellow
-Write-Host "📄 Final report: $orchestratorDir/final_output.md" -ForegroundColor Yellow
+Write-Host "📄 Final report: .agentdocs/runtime/$taskId/final_output.md" -ForegroundColor Yellow
 Write-Host "⏱️ Total duration: $([math]::Round($duration, 2)) seconds" -ForegroundColor Yellow
 ```
 
@@ -620,8 +661,8 @@ When the user adds a new process rule during review:
 User correction: "Always include rollback notes for production-impacting changes."
 
 Action:
-1. Add this rule to README/SKILL/workflow templates
-2. Apply it as default for all subsequent tasks
+1. Add this rule to the **target project's** `.agentdocs/local-rules.md` (do NOT edit the skill's own RULES.md/SKILL.md/workflow.md)
+2. Apply it as default for all subsequent tasks in this project
 3. Record update in current execution log
 ```
 

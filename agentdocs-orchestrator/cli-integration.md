@@ -213,7 +213,7 @@ $result
 }
 
 # Usage
-$results = Invoke-ParallelAgents -MaxConcurrency 6
+$results = Invoke-ParallelAgents -TaskId "260320-my-task" -MaxConcurrency 6
 $results | Format-Table Agent, Success, Duration
 ```
 
@@ -230,10 +230,10 @@ $taskDir = ".agentdocs/runtime/$taskId/agent_tasks"
 $resultDir = ".agentdocs/runtime/$taskId/results"
 
 $taskGraph = @{
-    "T-01" = @{ Agent = "Agent-01"; Deps = @() }
-    "T-02" = @{ Agent = "Agent-02"; Deps = @("T-01") }
-    "T-03" = @{ Agent = "Agent-03"; Deps = @("T-01") }
-    "T-04" = @{ Agent = "Agent-04"; Deps = @("T-02", "T-03") }
+    "T-01" = @{ Agent = "agent-01"; Deps = @() }
+    "T-02" = @{ Agent = "agent-02"; Deps = @("T-01") }
+    "T-03" = @{ Agent = "agent-03"; Deps = @("T-01") }
+    "T-04" = @{ Agent = "agent-04"; Deps = @("T-02", "T-03") }
 }
 
 $completed = @{}
@@ -312,7 +312,11 @@ function Invoke-AgentWithRetry {
         $job = Start-Job -ScriptBlock {
             param($taskPath)
             $task = Get-Content $taskPath -Raw
-            claude -p $task
+            $output = claude -p $task 2>&1
+            return @{
+                Output = $output
+                ExitCode = $LASTEXITCODE
+            }
         } -ArgumentList $TaskFile
         
         # Wait with timeout
@@ -322,10 +326,12 @@ function Invoke-AgentWithRetry {
             $result = Receive-Job $job
             Remove-Job $job
             
-            if ($LASTEXITCODE -eq 0) {
-                $result | Out-File $ResultFile -Encoding UTF8
+            if ($result.ExitCode -eq 0) {
+                $result.Output | Out-File $ResultFile -Encoding UTF8
                 return @{ Success = $true; Retries = $retryCount }
             }
+
+            Write-Warning "Task failed with exit code $($result.ExitCode), retrying ($($retryCount + 1)/$MaxRetries)"
         }
         else {
             # Timeout, stop job
