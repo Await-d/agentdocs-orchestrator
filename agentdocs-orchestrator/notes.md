@@ -36,7 +36,29 @@
 - Agent task files and results
 - Cleaned up after specific task completion
 
-### 2. Task Decomposition
+### 2. Task Complexity Assessment
+
+Before decomposing, score the task across two dimensions:
+
+| Signal | Score |
+|--------|-------|
+| ≤2 atomic steps | –2 |
+| 3–4 atomic steps | 0 |
+| 5+ atomic steps | +2 |
+| Multiple independent parallel streams | +2 |
+| Involves 3+ modules, systems, or services | +1 |
+| Any single step estimated >5 min | +1 |
+| Results must be persisted for review by others | +1 |
+| Running in OpenCode (Mode A available) | –1 |
+
+**Routing:** Score ≤ –1 → direct; 0–2 → lightweight; 3+ → full orchestration.
+
+**Decomposition check (if score ≥ 0):**
+- Can it be split into 2+ independent parallel subtasks?
+- Does splitting reduce total time or failure blast radius?
+- Build a dependency DAG before assigning agents.
+
+### 3. Task Decomposition
 - Break complex requests into independent atomic tasks
 - Identify dependencies between tasks
 - Define input/output for each task

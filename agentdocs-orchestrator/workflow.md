@@ -82,6 +82,35 @@
 
 ## Phase 1: Task Analysis and Decomposition (Detailed)
 
+### 1.0 Complexity Assessment (Required Before Any Action)
+
+Before parsing intent or building a DAG, score the task using the two-dimension model:
+
+| Signal | Score |
+|--------|-------|
+| ≤2 atomic steps | –2 |
+| 3–4 atomic steps | 0 |
+| 5+ atomic steps | +2 |
+| Multiple independent parallel streams | +2 |
+| Involves 3+ modules, systems, or services | +1 |
+| Any single step estimated >5 min | +1 |
+| Results must be persisted for review by others | +1 |
+| Running in OpenCode (Mode A available) | –1 |
+
+**Routing:**
+- Score ≤ –1 → Execute directly (no `.agentdocs` needed)
+- Score 0–2 → Lightweight mode (workflow doc only)
+- Score 3+ → Full orchestration (workflow + runtime + master_plan + agent files)
+
+**Decomposition check (if score ≥ 0):**
+1. **Can it be split?** — 2+ independent subtasks that can run in parallel?
+2. **Should it be split?** — Splitting reduces total time OR failure blast radius?
+3. **Dependency order?** — Build a DAG before assigning agents.
+
+If both #1 and #2 are YES → decompose. If #1 YES but #2 NO → execute sequentially in context.
+
+---
+
 ### 1.1 Parse User Intent
 
 ```markdown
