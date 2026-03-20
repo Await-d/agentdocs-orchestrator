@@ -246,20 +246,34 @@ $resultDir = ".agentdocs/runtime/$taskId/results"
 New-Item -ItemType Directory -Path $resultDir -Force | Out-Null
 
 $docs = Get-ChildItem "docs/*.md"
+if ($docs.Count -eq 0) {
+    Write-Error "No markdown docs found under docs/"
+    exit 1
+}
+
 $jobs = foreach ($doc in $docs) {
     $index = [array]::IndexOf($docs, $doc) + 1
     $agentId = "agent-{0:D2}" -f $index
     Start-Job -Name $agentId -ScriptBlock {
         param($file, $resultPath)
         $content = Get-Content $file -Raw
-        $result = claude -p "Translate the following English content to Chinese, maintain Markdown format: $content"
+        $result = claude -p "Translate the following English content to Chinese, maintain Markdown format: $content" 2>&1
+        $exitCode = $LASTEXITCODE
         $result | Out-File $resultPath -Encoding UTF8
+        return @{ Agent = [System.IO.Path]::GetFileNameWithoutExtension($file); Success = ($exitCode -eq 0); ExitCode = $exitCode }
     } -ArgumentList $doc.FullName, "$resultDir/$agentId-result.md"
 }
 
 # Wait for all to complete in parallel
 $jobs | Wait-Job | Out-Null
+$results = $jobs | Receive-Job
 $jobs | Remove-Job
+
+if ($results | Where-Object { -not $_.Success }) {
+    Write-Error "One or more translation jobs failed. Review result files before using them."
+    exit 1
+}
+
 Write-Host "Results saved to $resultDir"
 ```
 
@@ -288,6 +302,60 @@ Agent-03 completed ✅
 ══════════════════════════════════════════════════════════════════
 Total duration: 45 seconds (Serial estimate: 180 seconds)
 Parallel efficiency: 4x speedup
+```
+
+---
+
+## Lightweight Mode Mini Example
+
+### Scenario
+> "Review three related API handlers, identify auth issues, and summarize fixes"
+
+### Complexity Assessment
+
+```markdown
+Atomic steps: 3 → 0
+Multiple independent parallel streams: yes → +2
+Involves 3 modules: yes → +1
+OpenCode available: yes → -1
+
+Total score = 2 → Lightweight mode
+```
+
+### Workflow Artifact
+
+```markdown
+# .agentdocs/workflow/260112-auth-review.md
+
+## Task Overview
+Review three related API handlers for auth issues and summarize fixes.
+
+## Implementation Plan
+- [ ] T-01: Review `auth.ts` and capture auth flow
+- [ ] T-02: Review `users.ts` and identify auth gaps
+- [ ] T-03: Review `admin.ts` and summarize cross-file issues
+
+## Notes
+- Routing score: 2 → Lightweight mode
+- No runtime dir
+```
+
+### Execution
+
+```typescript
+// Dispatch directly without runtime artifacts
+const t1 = task(category="quick", run_in_background=true, load_skills=[], prompt="Review auth.ts auth flow")
+const t2 = task(category="quick", run_in_background=true, load_skills=[], prompt="Review users.ts auth gaps")
+
+// Or run sequentially in context if parallelism isn't worth the overhead
+```
+
+### Completion
+
+```markdown
+## Notes
+- Memory sync: completed
+- Archived to `.agentdocs/workflow/done/260112-auth-review.md`
 ```
 
 ---
@@ -375,7 +443,7 @@ Parallel efficiency: 4x speedup
 
 ## Example 4: Real Execution Using Claude CLI (Full Orchestration)
 
-> **Note:** This example uses full orchestration mode (runtime dir + agent files). It decomposes the request into multiple tasks via claude, then runs them in parallel. Use this for tasks with 5+ steps or multiple independent streams.
+> **Note:** This example uses full orchestration mode (runtime dir + agent files). Use it when the routing score is **≥ 3** — typically 5+ steps or any task with enough coordination/parallelism to justify runtime artifacts.
 
 ### Complete PowerShell Script
 
@@ -395,7 +463,7 @@ Write-Host ""
 Write-Host "📋 Phase 1: Analyzing request and decomposing tasks..." -ForegroundColor Yellow
 
 $decomposePrompt = @"
-You are a task decomposition expert. Please decompose the following request into 3-5 independent atomic tasks.
+You are a task decomposition expert. Please decompose the following request into enough independent atomic tasks to justify **full orchestration** under the score-based routing model.
 
 Request: $Request
 
@@ -457,6 +525,11 @@ Write-Host ""
 Write-Host "🚀 Phase 3: Parallel execution..." -ForegroundColor Yellow
 
 $taskFiles = Get-ChildItem "$orchestratorDir/agent_tasks/*.md"
+if ($taskFiles.Count -eq 0) {
+    Write-Error "No agent task files found in $orchestratorDir/agent_tasks"
+    exit 1
+}
+
 $startTime = Get-Date
 
 $jobs = foreach ($file in $taskFiles) {
@@ -467,20 +540,34 @@ $jobs = foreach ($file in $taskFiles) {
         param($taskPath, $resultPath)
         $task = Get-Content $taskPath -Raw
         $result = claude -p $task 2>&1
+        $exitCode = $LASTEXITCODE
         $result | Out-File $resultPath -Encoding UTF8
-        return $result
+        return @{
+            Agent = [System.IO.Path]::GetFileNameWithoutExtension($taskPath)
+            ExitCode = $exitCode
+            Success = ($exitCode -eq 0)
+            Output = $result
+        }
     } -ArgumentList $file.FullName, "$orchestratorDir/results/$agentId-result.md"
 }
 
 # Wait for completion
 $jobs | Wait-Job | Out-Null
+$jobResults = $jobs | Receive-Job
 $endTime = Get-Date
 $duration = ($endTime - $startTime).TotalSeconds
 
 Write-Host ""
-foreach ($job in $jobs) {
-    $status = if ($job.State -eq 'Completed') { "✅" } else { "❌" }
-    Write-Host "  $status $($job.Name) completed" -ForegroundColor Green
+foreach ($result in $jobResults) {
+    $status = if ($result.Success) { "✅" } else { "❌" }
+    $color = if ($result.Success) { "Green" } else { "Red" }
+    Write-Host "  $status $($result.Agent) completed (exit code: $($result.ExitCode))" -ForegroundColor $color
+}
+
+if ($jobResults | Where-Object { -not $_.Success }) {
+    Write-Error "One or more agent tasks failed. Review result files before aggregation."
+    $jobs | Remove-Job
+    exit 1
 }
 
 # Phase 4: Result Aggregation
@@ -499,7 +586,13 @@ $allResults
 Requirements: Generate executive summary and key findings
 "@
 
-$finalReport = claude -p $mergePrompt 2>$null
+$finalReport = claude -p $mergePrompt 2>&1
+$mergeExitCode = $LASTEXITCODE
+if ($mergeExitCode -ne 0) {
+    Write-Error "Report generation failed (exit code: $mergeExitCode). Review agent result files before retrying."
+    $jobs | Remove-Job
+    exit 1
+}
 $finalReport | Out-File ".agentdocs/runtime/$taskId/final_output.md" -Encoding UTF8
 
 Write-Host "  ✅ Report generation complete" -ForegroundColor Green

@@ -53,6 +53,8 @@ Before decomposing, score the task across two dimensions:
 
 **Routing:** Score ≤ –1 → direct; 0–2 → lightweight; 3+ → full orchestration.
 
+> **Authority rule:** The score result is final. Step count is only one signal inside the model.
+
 **Decomposition check (if score ≥ 0):**
 - Can it be split into 2+ independent parallel subtasks?
 - Does splitting reduce total time or failure blast radius?
@@ -175,8 +177,8 @@ agentdocs-orchestrator/
 When user submits complex task without planning:
 1. Create workflow document: `.agentdocs/workflow/YYMMDD-task-name.md`
 2. Register in `index.md` under "Current Task Documents"
-3. **Full orchestration only (5+ steps):** Create runtime directory: `.agentdocs/runtime/YYMMDD-task-name/` and proceed with distributed execution
-4. **Lightweight mode (3–4 steps):** Skip runtime dir — dispatch tasks via `task()` or sequentially in context
+3. **Full orchestration only (score ≥ 3):** Create runtime directory: `.agentdocs/runtime/YYMMDD-task-name/` and proceed with distributed execution
+4. **Lightweight mode (score 0–2):** Skip runtime dir — dispatch tasks via `task()` or sequentially in context
 
 ### Status Synchronization *(full orchestration only)*
 After each atomic task completes:

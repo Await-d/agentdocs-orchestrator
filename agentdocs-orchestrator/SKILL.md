@@ -47,6 +47,8 @@ Score 3+    → Full orchestration:
                 workflow doc + runtime dir + master_plan + agent files
 ```
 
+> **Authority rule:** The **score result is the final routing decision**. Step count is only one input signal inside the score, not a separate override.
+
 ### Step 3: Decomposition check (before starting implementation)
 
 Before writing any code or running any tasks, ask:
@@ -67,7 +69,7 @@ If #1 is NO → execute directly without decomposition.
 | Fix a typo in one file | –2 | Direct |
 | Refactor 2 functions with tests | –1 | Direct |
 | Add auth to 3 API endpoints | 1 | Lightweight |
-| Code review across 5 modules | 3 | Lightweight or Full |
+| Code review across 5 modules | 3 | Full orchestration |
 | Multi-service migration (DB + API + frontend) | 6 | Full orchestration |
 | Translate 10 docs in parallel | 4 | Full orchestration |
 
@@ -151,14 +153,14 @@ See [cli-integration.md](cli-integration.md) for full reference.
 1. Detect user language — all documents use the same language as the user
 2. Read `.agentdocs/index.md` for existing relevant context
 3. Analyze intent, identify dependencies (build DAG)
-4. Create workflow document for 3+ step tasks
+4. If routing selects lightweight or full orchestration: create a workflow document
 5. Break down into atomic tasks (target: 1–5 min each)
 
 ### Phase 2️⃣ Agent Assignment
 
-> **Lightweight mode (3–4 steps):** Skip runtime dir. Track tasks inline or in the workflow doc only. Dispatch directly via `task()` or execute sequentially in context — no `master_plan.md` or `agent_tasks/` files needed.
+> **Lightweight mode (when score = 0–2; typically 3–4 step tasks):** Skip runtime dir. Track tasks inline or in the workflow doc only. Dispatch directly via `task()` or execute sequentially in context — no `master_plan.md` or `agent_tasks/` files needed.
 >
-> **Full orchestration (5+ steps):** Create task-specific runtime directory: `.agentdocs/runtime/<task-id>/`, create `master_plan.md` with task decomposition and status table, generate agent task files (Mode B/C) OR dispatch via `task()` (Mode A).
+> **Full orchestration (when score ≥ 3; commonly 5+ step or high-coordination tasks):** Create task-specific runtime directory: `.agentdocs/runtime/<task-id>/`, create `master_plan.md` with task decomposition and status table, generate agent task files (Mode B/C) OR dispatch via `task()` (Mode A).
 
 **Status icons:** 🟡 Pending | 🔵 Running | ✅ Completed | ❌ Failed | ⏸️ Waiting
 

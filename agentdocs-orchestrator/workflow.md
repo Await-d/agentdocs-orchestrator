@@ -2,7 +2,7 @@
 
 ## Complete Execution Flow Diagram
 
-> **Note:** Phases 2–4 below describe the **full orchestration path** (5+ steps). For lightweight mode (3–4 steps), skip Phases 2–4 runtime artifacts and track tasks inline.
+> **Note:** Phases 2–4 below describe the **full orchestration path** (when routing score ≥ 3; commonly 5+ steps or high-coordination tasks). For lightweight mode (score 0–2; typically 3–4 steps), skip Phases 2–4 runtime artifacts and track tasks inline.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -101,6 +101,8 @@ Before parsing intent or building a DAG, score the task using the two-dimension 
 - Score ≤ –1 → Execute directly (no `.agentdocs` needed)
 - Score 0–2 → Lightweight mode (workflow doc only)
 - Score 3+ → Full orchestration (workflow + runtime + master_plan + agent files)
+
+> **Authority rule:** Use the score result as the final routing decision. Step count alone does not override the score.
 
 **Decomposition check (if score ≥ 0):**
 1. **Can it be split?** — 2+ independent subtasks that can run in parallel?
@@ -292,23 +294,39 @@ $taskId = "YYMMDD-task-name"
 $runtimePath = ".agentdocs/runtime/$taskId"
 
 $taskFiles = Get-ChildItem "$runtimePath/agent_tasks/*.md"
+if ($taskFiles.Count -eq 0) {
+    Write-Error "No task files found in $runtimePath/agent_tasks"
+    exit 1
+}
+
 $jobs = foreach ($file in $taskFiles) {
     $agentId = $file.BaseName
     Start-Job -Name $agentId -ScriptBlock {
         param($taskPath, $resultPath)
         $task = Get-Content $taskPath -Raw
-        $result = claude -p $task
+        $result = claude -p $task 2>&1
+        $exitCode = $LASTEXITCODE
         $result | Out-File $resultPath -Encoding UTF8
+        return @{ Agent = [System.IO.Path]::GetFileNameWithoutExtension($taskPath); Success = ($exitCode -eq 0); ExitCode = $exitCode; Output = $result }
     } -ArgumentList $file.FullName, "$runtimePath/results/$agentId-result.md"
 }
 
 # Wait for all to complete
-$jobs | Wait-Job
+$results = $jobs | Wait-Job | Receive-Job
 
 # Collect results
-$jobs | ForEach-Object {
-    Write-Host "[$($_.Name)] Status: $($_.State)"
-    Receive-Job $_
+$results | ForEach-Object {
+    if ($_.Success) {
+        Write-Host "[$($_.Agent)] Status: ✅ Success"
+    } else {
+        Write-Host "[$($_.Agent)] Status: ❌ Failed (exit code: $($_.ExitCode))"
+    }
+}
+
+if ($results | Where-Object { -not $_.Success }) {
+    Write-Error "One or more agent jobs failed. Stop and inspect result files before continuing."
+    $jobs | Remove-Job
+    exit 1
 }
 
 # Cleanup
@@ -326,6 +344,12 @@ $pool = [RunspaceFactory]::CreateRunspacePool(1, 5)  # Max 5 parallel
 $pool.Open()
 
 $tasks = Get-ChildItem "$runtimePath/agent_tasks/*.md"
+if ($tasks.Count -eq 0) {
+    $pool.Close()
+    $pool.Dispose()
+    throw "No task files found in $runtimePath/agent_tasks"
+}
+
 $runspaces = @()
 
 foreach ($task in $tasks) {
@@ -334,7 +358,12 @@ foreach ($task in $tasks) {
     $ps.AddScript({
         param($taskPath)
         $content = Get-Content $taskPath -Raw
-        claude -p $content
+        $result = claude -p $content 2>&1
+        $exitCode = $LASTEXITCODE
+        if ($exitCode -ne 0) {
+            throw "claude exited with code $exitCode"
+        }
+        return $result
     }).AddArgument($task.FullName) | Out-Null
 
     $runspaces += [PSCustomObject]@{
@@ -346,8 +375,17 @@ foreach ($task in $tasks) {
 
 # Wait and collect results
 foreach ($rs in $runspaces) {
-    $result = $rs.PowerShell.EndInvoke($rs.Handle)
-    $result | Out-File "$runtimePath/results/$($rs.Task)-result.md"
+    try {
+        $result = $rs.PowerShell.EndInvoke($rs.Handle)
+        $result | Out-File "$runtimePath/results/$($rs.Task)-result.md"
+    }
+    catch {
+        $_.Exception.Message | Out-File "$runtimePath/results/$($rs.Task)-result.md"
+        $rs.PowerShell.Dispose()
+        $pool.Close()
+        $pool.Dispose()
+        throw
+    }
     $rs.PowerShell.Dispose()
 }
 
@@ -422,7 +460,13 @@ Requirements:
 4. Generate executive summary
 "@
 
-claude -p $mergePrompt | Out-File "$runtimePath/final_output.md"
+$finalReport = claude -p $mergePrompt 2>&1
+$mergeExitCode = $LASTEXITCODE
+if ($mergeExitCode -ne 0) {
+    throw "Merge failed with exit code $mergeExitCode"
+}
+
+$finalReport | Out-File "$runtimePath/final_output.md"
 ```
 
 ### 4.3 Defensive Completion Artifacts (Required)

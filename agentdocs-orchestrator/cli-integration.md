@@ -83,6 +83,10 @@ $taskId = "YYMMDD-task-name"
 $runtimePath = ".agentdocs/runtime/$taskId"
 
 $taskFiles = Get-ChildItem "$runtimePath/agent_tasks/*.md"
+if ($taskFiles.Count -eq 0) {
+    Write-Error "No task files found in $runtimePath/agent_tasks"
+    exit 1
+}
 
 # Create background jobs
 $jobs = foreach ($file in $taskFiles) {
@@ -96,13 +100,15 @@ $jobs = foreach ($file in $taskFiles) {
 
         # Execute Claude CLI
         $result = claude -p $task 2>&1
+        $exitCode = $LASTEXITCODE
 
         # Save result
         $result | Out-File $resultPath -Encoding UTF8
 
         return @{
             Agent = $using:agentId
-            Success = $LASTEXITCODE -eq 0
+            Success = $exitCode -eq 0
+            ExitCode = $exitCode
             Output = $result
         }
     } -ArgumentList $file.FullName, "$runtimePath/results/$agentId-result.md"
@@ -124,8 +130,14 @@ $results | ForEach-Object {
     if ($_.Success) {
         Write-Host "✅ $($_.Agent) completed" -ForegroundColor Green
     } else {
-        Write-Host "❌ $($_.Agent) failed" -ForegroundColor Red
+        Write-Host "❌ $($_.Agent) failed (exit code: $($_.ExitCode))" -ForegroundColor Red
     }
+}
+
+if ($results | Where-Object { -not $_.Success }) {
+    Write-Error "One or more agents failed. Review result files before continuing."
+    $jobs | Remove-Job
+    exit 1
 }
 
 # Cleanup
@@ -150,6 +162,12 @@ function Invoke-ParallelAgents {
     $pool.Open()
     
     $tasks = Get-ChildItem "$TaskDir/*.md"
+    if ($tasks.Count -eq 0) {
+        $pool.Close()
+        $pool.Dispose()
+        throw "No task files found in $TaskDir"
+    }
+
     $runspaces = @()
     
     foreach ($task in $tasks) {
@@ -164,6 +182,10 @@ function Invoke-ParallelAgents {
             
             try {
                 $result = claude -p $task 2>&1
+                $exitCode = $LASTEXITCODE
+                if ($exitCode -ne 0) {
+                    throw "claude exited with code $exitCode"
+                }
                 $endTime = Get-Date
                 
                 # Build result report
@@ -180,7 +202,7 @@ function Invoke-ParallelAgents {
 $result
 "@ | Out-File $resultPath -Encoding UTF8
                 
-                return @{ Success = $true; Duration = ($endTime - $startTime).TotalSeconds }
+                return @{ Success = $true; ExitCode = 0; Duration = ($endTime - $startTime).TotalSeconds }
             }
             catch {
                 return @{ Success = $false; Error = $_.Exception.Message }
@@ -237,13 +259,14 @@ $taskGraph = @{
 }
 
 $completed = @{}
+$failed = @{}
 
 function Get-ReadyTasks {
-    param($graph, $completed)
+    param($graph, $completed, $failed)
     
     $ready = @()
     foreach ($taskId in $graph.Keys) {
-        if (-not $completed.ContainsKey($taskId)) {
+        if (-not $completed.ContainsKey($taskId) -and -not $failed.ContainsKey($taskId)) {
             $deps = $graph[$taskId].Deps
             $allDepsComplete = $true
             foreach ($dep in $deps) {
@@ -261,12 +284,12 @@ function Get-ReadyTasks {
 }
 
 # Topological sort execution
-while ($completed.Count -lt $taskGraph.Count) {
-    $readyTasks = Get-ReadyTasks -graph $taskGraph -completed $completed
+while (($completed.Count + $failed.Count) -lt $taskGraph.Count) {
+    $readyTasks = Get-ReadyTasks -graph $taskGraph -completed $completed -failed $failed
     
     if ($readyTasks.Count -eq 0) {
         Write-Error "Circular dependency detected!"
-        break
+        exit 1
     }
     
     Write-Host "═══ Execution Batch: $($readyTasks -join ', ') ═══" -ForegroundColor Cyan
@@ -274,25 +297,51 @@ while ($completed.Count -lt $taskGraph.Count) {
     # Execute ready tasks in parallel
     $jobs = foreach ($taskId in $readyTasks) {
         $agent = $taskGraph[$taskId].Agent
+        $agentFile = "$taskDir/$agent.md"
+        if (-not (Test-Path $agentFile)) {
+            Write-Error "Missing task file: $agentFile"
+            exit 1
+        }
+
         Start-Job -Name $taskId -ScriptBlock {
             param($agentFile, $resultFile)
             $task = Get-Content $agentFile -Raw
-            claude -p $task | Out-File $resultFile -Encoding UTF8
-            return $true
+            $result = claude -p $task 2>&1
+            $exitCode = $LASTEXITCODE
+            $result | Out-File $resultFile -Encoding UTF8
+            return @{ Success = ($exitCode -eq 0); ExitCode = $exitCode }
         } -ArgumentList "$taskDir/$agent.md", "$resultDir/$agent-result.md"
     }
     
-    $jobs | Wait-Job | Out-Null
+    $results = $jobs | Wait-Job | Receive-Job
+    $batchFailed = $false
     
-    foreach ($job in $jobs) {
-        $completed[$job.Name] = $true
-        Write-Host "  ✅ $($job.Name) completed" -ForegroundColor Green
+    for ($i = 0; $i -lt $jobs.Count; $i++) {
+        $job = $jobs[$i]
+        $result = $results[$i]
+        if ($result.Success) {
+            $completed[$job.Name] = $true
+            Write-Host "  ✅ $($job.Name) completed" -ForegroundColor Green
+        } else {
+            $failed[$job.Name] = $true
+            $batchFailed = $true
+            Write-Host "  ❌ $($job.Name) failed (exit code: $($result.ExitCode))" -ForegroundColor Red
+        }
     }
     
     $jobs | Remove-Job
+
+    if ($batchFailed) {
+        Write-Error "Execution stopped because one or more dependency-managed tasks failed."
+        exit 1
+    }
 }
 
-Write-Host "All tasks executed successfully!" -ForegroundColor Green
+if ($completed.Count -eq $taskGraph.Count) {
+    Write-Host "All tasks executed successfully!" -ForegroundColor Green
+} else {
+    Write-Warning "Execution stopped before all tasks completed successfully."
+}
 ```
 
 ### 2. Execution with Timeout and Retry
@@ -492,7 +541,12 @@ $($result.Content)
     }
     
     # Use Claude to merge
-    $finalReport = claude -p $mergePrompt
+    $finalReport = claude -p $mergePrompt 2>&1
+    $mergeExitCode = $LASTEXITCODE
+    if ($mergeExitCode -ne 0) {
+        throw "Merge failed with exit code $mergeExitCode"
+    }
+
     $finalReport | Out-File $OutputFile -Encoding UTF8
     
     Write-Host "✅ Final report generated: $OutputFile" -ForegroundColor Green
@@ -600,11 +654,21 @@ $jobs = foreach ($agent in $tasks.Keys) {
     Start-Job -Name $agent -ScriptBlock {
         param($taskPath, $resultPath)
         $task = Get-Content $taskPath -Raw
-        claude -p $task | Out-File $resultPath -Encoding UTF8
+        $result = claude -p $task 2>&1
+        $exitCode = $LASTEXITCODE
+        $result | Out-File $resultPath -Encoding UTF8
+        return @{ Agent = [System.IO.Path]::GetFileNameWithoutExtension($taskPath); Success = ($exitCode -eq 0); ExitCode = $exitCode }
     } -ArgumentList "$runtimePath/agent_tasks/$agent.md", "$runtimePath/results/$agent-result.md"
 }
 
-$jobs | Wait-Job | Out-Null
+$results = $jobs | Wait-Job | Receive-Job
+
+if ($results | Where-Object { -not $_.Success }) {
+    Write-Error "One or more review agents failed. Check result files before aggregation."
+    $jobs | Remove-Job
+    exit 1
+}
+
 Write-Host "✅ All reviews completed" -ForegroundColor Green
 
 # 4. Aggregate results

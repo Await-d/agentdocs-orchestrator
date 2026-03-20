@@ -380,9 +380,11 @@ if (-not (Test-Path $ResultDir)) {
 $taskFiles = Get-ChildItem "$TaskDir/*.md" | Sort-Object Name
 
 if ($taskFiles.Count -eq 0) {
-    Write-Warning "No task files found in $TaskDir"
-    return
+    Write-Error "No task files found in $TaskDir"
+    exit 1
 }
+
+$anyFailed = $false
 
 Write-Host "═══════════════════════════════════════════════════" -ForegroundColor Cyan
 Write-Host "       🚀 Distributed Task Orchestration - Agent Executor" -ForegroundColor Cyan
@@ -467,6 +469,7 @@ $result
             if ($result.Status -eq "Success") {
                 Write-Host "✅ $($result.Agent): Success ($([math]::Round($result.Duration, 2))s)" -ForegroundColor Green
             } else {
+                $anyFailed = $true
                 Write-Host "❌ $($result.Agent): Failed - $($result.Error)" -ForegroundColor Red
             }
             Remove-Job $finished
@@ -501,6 +504,7 @@ else {
             Write-Host "  ✅ Completed ($([math]::Round($duration, 2))s)" -ForegroundColor Green
         }
         catch {
+            $anyFailed = $true
             $endTime = Get-Date
             @"
 # Agent Execution Result
@@ -519,6 +523,11 @@ else {
 
 Write-Host ""
 Write-Host "Results saved to: $ResultDir" -ForegroundColor Yellow
+
+if ($anyFailed) {
+    Write-Error "One or more agents failed. Exiting with non-zero status."
+    exit 1
+}
 ```
 
 ### Bash Script (run-agents.sh)
@@ -532,6 +541,7 @@ Write-Host "Results saved to: $ResultDir" -ForegroundColor Yellow
 PARALLEL=false
 MAX_JOBS=4
 TASK_ID=""
+any_failed=false
 
 while getopts "t:pj:" opt; do
     case $opt in
@@ -562,8 +572,8 @@ task_files=("$TASK_DIR"/*.md)
 shopt -u nullglob
 
 if [ ${#task_files[@]} -eq 0 ]; then
-    echo "No task files found in $TASK_DIR"
-    exit 0
+    echo "No task files found in $TASK_DIR" >&2
+    exit 1
 fi
 
 echo "═══════════════════════════════════════════════════"
@@ -588,8 +598,10 @@ run_agent() {
         local end_time=$(date +%s)
         local duration=$((end_time - start_time))
         echo "✅ $agent_id: Success (${duration}s)"
+        return 0
     else
         echo "❌ $agent_id: Failed"
+        return 1
     fi
 }
 
@@ -597,15 +609,24 @@ export -f run_agent
 export RESULT_DIR
 
 if $PARALLEL; then
-    printf '%s\n' "${task_files[@]}" | parallel -j "$MAX_JOBS" run_agent {}
+    if ! printf '%s\n' "${task_files[@]}" | parallel -j "$MAX_JOBS" run_agent {}; then
+        any_failed=true
+    fi
 else
     for task_file in "${task_files[@]}"; do
-        run_agent "$task_file"
+        if ! run_agent "$task_file"; then
+            any_failed=true
+        fi
     done
 fi
 
 echo ""
 echo "Results saved to: $RESULT_DIR"
+
+if $any_failed; then
+    echo "One or more agents failed. Exiting with non-zero status." >&2
+    exit 1
+fi
 ```
 
 ---
