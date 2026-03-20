@@ -19,25 +19,57 @@ description: Advanced task orchestration system integrated with agentdocs knowle
 
 ---
 
-## Task Complexity Decision Tree
+## Task Complexity Assessment
 
-Before creating any documents, classify the task:
+Before creating any documents, evaluate complexity across **two dimensions** and classify the task:
+
+### Step 1: Score the task
+
+| Signal | Score |
+|--------|-------|
+| ≤2 atomic steps | –2 |
+| 3–4 atomic steps | 0 |
+| 5+ atomic steps | +2 |
+| Multiple independent parallel streams (agents can run simultaneously) | +2 |
+| Involves 3+ modules, systems, or services | +1 |
+| Any single step estimated >5 min to complete | +1 |
+| Results must be persisted for review by others | +1 |
+| Running in OpenCode (Mode A available) | –1 |
+
+### Step 2: Choose mode based on total score
 
 ```
-Task received
-    │
-    ├── ≤2 steps, strictly sequential
-    │   → Execute directly. No .agentdocs needed.
-    │
-    ├── 3–4 steps, some parallelizable
-    │   → Lightweight mode:
-    │     1. Create workflow doc only (no runtime dir)
-    │     2. Execute via task() or sequentially in context
-    │
-    └── Complex, 5+ steps, multiple independent streams
-        → Full orchestration:
-          workflow doc + runtime dir + master_plan + agent files
+Score ≤ –1  → Execute directly. No .agentdocs needed.
+Score 0–2   → Lightweight mode:
+                1. Create workflow doc only (no runtime dir)
+                2. Execute via task() or sequentially in context
+Score 3+    → Full orchestration:
+                workflow doc + runtime dir + master_plan + agent files
 ```
+
+### Step 3: Decomposition check (before starting implementation)
+
+Before writing any code or running any tasks, ask:
+1. **Can this be split?** — Are there 2+ independent subtasks that can run in parallel without waiting for each other?
+2. **Should it be split?** — Does splitting reduce total time OR reduce failure blast radius?
+3. **What is the dependency order?** — Build a DAG: which tasks block which others?
+
+If the answer to both #1 and #2 is YES → decompose and assign to agents.
+If #1 is YES but #2 is NO (overhead exceeds benefit) → execute sequentially in context.
+If #1 is NO → execute directly without decomposition.
+
+> **Rule of thumb:** When in doubt, start lightweight. You can escalate to full orchestration if scope grows.
+
+### Quick classification examples
+
+| Task | Score | Mode |
+|------|-------|------|
+| Fix a typo in one file | –2 | Direct |
+| Refactor 2 functions with tests | –1 | Direct |
+| Add auth to 3 API endpoints | 1 | Lightweight |
+| Code review across 5 modules | 3 | Lightweight or Full |
+| Multi-service migration (DB + API + frontend) | 6 | Full orchestration |
+| Translate 10 docs in parallel | 4 | Full orchestration |
 
 ---
 
