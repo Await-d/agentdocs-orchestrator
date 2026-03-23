@@ -1,0 +1,86 @@
+[
+  {
+    "query": "帮我把这个后端重构拆成几个能并行推进的子任务，最好顺便评估一下是走简单流程还是 full orchestration。涉及 `src/api`、`src/jobs` 和 `src/db` 三块。",
+    "should_trigger": true
+  },
+  {
+    "query": "我已经有 `.agentdocs/workflow/260320-reporting.md` 了，接下来做完每一步你都要把勾选状态和 runtime plan 同步更新。",
+    "should_trigger": true
+  },
+  {
+    "query": "Can you create an implementation workflow for migrating auth from sessions to JWT across 5 services and tell me whether this deserves direct, lightweight, or full orchestration?",
+    "should_trigger": true
+  },
+  {
+    "query": "给我一个执行方案：先研究 4 个页面的支付逻辑，再让不同 agent 并发审查，最后合并结果。",
+    "should_trigger": true
+  },
+  {
+    "query": "Need a task breakdown plus dependency graph for a multi-step API hardening effort. I also want progress tracked in `.agentdocs`.",
+    "should_trigger": true
+  },
+  {
+    "query": "帮我判断这个需求到底是小修小补还是应该建 workflow：要改 3 个 cron job、1 个 exporter、1 套告警规则。",
+    "should_trigger": true
+  },
+  {
+    "query": "我不是要你直接写代码，先把任务难度分级、选执行模式、列出 TODO 和依赖关系。",
+    "should_trigger": true
+  },
+  {
+    "query": "Please coordinate a few sub-agents to inspect frontend performance, backend latency, and deployment risk, then keep a shared plan updated as tasks finish.",
+    "should_trigger": true
+  },
+  {
+    "query": "想在 `.agentdocs/runtime` 下面给这次多阶段迁移开一个 master plan，再按完成情况同步 workflow 勾选项。",
+    "should_trigger": true
+  },
+  {
+    "query": "给我做个 roadmap，把这个跨模块 bugfix 分阶段推进，每阶段不要超过 3 个文件，并明确哪些子任务能平行处理。",
+    "should_trigger": true
+  },
+  {
+    "query": "请修一下 `src/utils/date.ts` 里一个格式化 bug，应该就一两行。",
+    "should_trigger": false
+  },
+  {
+    "query": "Read `docs/architecture.md` and summarize the main services for me.",
+    "should_trigger": false
+  },
+  {
+    "query": "我想把 README 里的两段说明改得更顺一点，不需要方案，直接改文案。",
+    "should_trigger": false
+  },
+  {
+    "query": "Can you write a unit test for `parseEmail()` and run it? It's only one helper file plus one test file.",
+    "should_trigger": false
+  },
+  {
+    "query": "帮我比较一下 PostgreSQL 和 MySQL 哪个更适合我们的订单系统。先别做计划。",
+    "should_trigger": false
+  },
+  {
+    "query": "我需要一个 SQL 查询，找出最近 30 天每个用户的下单次数。",
+    "should_trigger": false
+  },
+  {
+    "query": "Open the PDF in my downloads and extract the text into markdown.",
+    "should_trigger": false
+  },
+  {
+    "query": "Just explain how topological sort works with a tiny example; don't create any workflow files.",
+    "should_trigger": false
+  },
+  {
+    "query": "把这个 React 按钮组件改成支持 disabled 样式和 loading 状态，文件就一个。",
+    "should_trigger": false
+  },
+  {
+    "query": "I want feedback on whether this architecture proposal is reasonable, but don't turn it into a task plan yet.",
+    "should_trigger": false
+  },
+  {
+    "query": "给我简单列一下修 `src/lib/slug.ts` 这个单文件 bug 的两步计划就行，不需要 workflow，也不要 `.agentdocs`。",
+    "should_trigger": false
+  }
+]

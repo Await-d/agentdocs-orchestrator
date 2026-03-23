@@ -1,0 +1,29 @@
+{
+  "skill_name": "agentdocs-orchestrator",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我准备重构一个订单系统，涉及 `api/orders.ts`、`services/pricing.ts`、`workers/invoice.ts` 和一个新的回归测试文件。先帮我拆任务、判断应该走 direct 还是 full orchestration，并把计划写成能跟踪进度的 workflow。",
+      "expected_output": "Produces a written Complexity Assessment, chooses the correct routing mode, and creates a workflow-oriented plan with trackable TODO items instead of jumping straight into implementation.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "帮我看一下这个工作适不适合并行：要审查 6 个 React 页面里的权限逻辑、汇总风险、再给出修复顺序。我希望最后方案里能明确哪些任务可以并发做。",
+      "expected_output": "Scores the task, routes it appropriately, decomposes the work into dependency-aware tasks, and identifies which subtasks can run in parallel.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "当前 `.agentdocs/workflow/260320-auth-hardening.md` 里前两个子任务已经完成。继续执行剩余工作时，记得把完成的项目勾掉，并同步运行中的状态表。",
+      "expected_output": "Preserves plan-status synchronization as a completion requirement, explicitly updates workflow markers, and if full orchestration is active also syncs master_plan status rows.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "我有一个不确定复杂度的任务：要不要给 analytics 模块加一个 runtime orchestration？涉及 3 个 ingestion job、1 个 dashboard、还有文档同步。请先评估难度和模式，再给方案。",
+      "expected_output": "Does not assume orchestration up front; instead writes a Complexity Assessment, picks direct/lightweight/full based on the scoring model, and explains the route in the plan.",
+      "files": []
+    }
+  ]
+}
