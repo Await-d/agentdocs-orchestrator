@@ -1,8 +1,8 @@
 # RULES.md
 
-Status: Active  
-Version: 1.1.0  
-Last Updated: 2026-02-26  
+Status: Active
+Version: 1.2.0
+Last Updated: 2026-03-20
 Owner: Project Maintainer
 
 ## 1) Purpose
@@ -24,6 +24,7 @@ restrict, or override any rule here. Local rules take precedence over this file.
 All items below must be satisfied before writing implementation code:
 
 - [ ] Plan is written and includes goal, impacted files, risk analysis, and verification strategy
+- [ ] If the agentdocs skill is active for the task, a written Complexity Assessment and chosen mode are recorded before decomposition or direct execution
 - [ ] Explicit user approval is received. Approval signals include:
   - English: "approved", "go ahead", "start", "ok", "yes", "proceed", "sounds good", "let's do it"
   - Chinese: "好的", "开始", "开始吧", "可以", "没问题", "同意", "确认", "去做"
@@ -81,6 +82,9 @@ A task is not complete until all items are true:
 - [ ] Potential Bug Checklist attached
 - [ ] Test Case Checklist attached
 - [ ] Verification commands and outcomes recorded
+- [ ] Completed tasks are checked off in `.agentdocs/workflow/<task-id>.md`
+- [ ] Full orchestration only: matching `.agentdocs/runtime/<task-id>/master_plan.md` statuses are synced to final task state
+- [ ] No finished task remains marked pending in any plan artifact
 
 ## 8) Self-Evolution Protocol
 
@@ -107,3 +111,4 @@ Do not continue with partial compliance.
 |------|---------|--------|---------|-----------|
 | 2026-02-06 | 1.0.0 | Initial rules baseline | User-defined process constraints | Immediate |
 | 2026-02-26 | 1.1.0 | Scope clarification; self-evolution targets local-rules.md; multilingual approval signals | Skill review | Immediate |
+| 2026-03-20 | 1.2.0 | Require written complexity scoring before routing; require workflow/master-plan marker sync for completion | User-reported routing + status-sync gaps | Immediate |

@@ -55,6 +55,8 @@ Before decomposing, score the task across two dimensions:
 
 > **Authority rule:** The score result is final. Step count is only one signal inside the model.
 
+**Recording rule:** write the score into a visible `## Complexity Assessment` section before choosing a mode. Never default to the simplest mode without a written score breakdown.
+
 **Decomposition check (if score ≥ 0):**
 - Can it be split into 2+ independent parallel subtasks?
 - Does splitting reduce total time or failure blast radius?
@@ -136,9 +138,10 @@ agentdocs-orchestrator/
 
 ### Phase 1: Task Analysis and Planning
 - Check existing context from `index.md`
-- Parse user intent
-- Identify dependencies (DAG graph)
-- **Auto-create workflow document** if complex task lacks planning
+- Do a minimal intent parse (goal, scope, major modules/systems)
+- Record `## Complexity Assessment` and choose the route
+- For routed tasks, identify dependencies (DAG graph)
+- **Auto-create workflow document** for every lightweight/full routed task
 - Break down into atomic tasks
 
 ### Phase 2: Agent Assignment and Status Marking *(full orchestration only)*
@@ -161,8 +164,9 @@ agentdocs-orchestrator/
 - *(Lightweight mode: synthesize results directly in context)*
 
 ### Phase 5: Status Sync and Cleanup
-- **Extract durable memory first** before archiving workflow doc
 - **Update workflow document TODOs** after each task completion
+- **Full orchestration only:** update the matching `master_plan.md` status row in the same completion step
+- **Extract durable memory after status sync** and before archiving workflow doc
 - Move completed workflow docs to `.agentdocs/workflow/done/`
 - **Full orchestration only:** Clean up specific task's runtime: `rm -rf .agentdocs/runtime/<task-id>/`
 
@@ -175,16 +179,20 @@ agentdocs-orchestrator/
 
 ### Auto-Planning
 When user submits complex task without planning:
-1. Create workflow document: `.agentdocs/workflow/YYMMDD-task-name.md`
-2. Register in `index.md` under "Current Task Documents"
-3. **Full orchestration only (score ≥ 3):** Create runtime directory: `.agentdocs/runtime/YYMMDD-task-name/` and proceed with distributed execution
-4. **Lightweight mode (score 0–2):** Skip runtime dir — dispatch tasks via `task()` or sequentially in context
+1. Perform a minimal intent parse and record a written complexity score
+2. **Direct mode (score ≤ -1):** keep the score in the response/task notes and execute without `.agentdocs`
+3. Create workflow document: `.agentdocs/workflow/YYMMDD-task-name.md` for lightweight/full routes
+4. Register in `index.md` under "Current Task Documents"
+5. **Full orchestration only (score ≥ 3):** Create runtime directory: `.agentdocs/runtime/YYMMDD-task-name/` and proceed with distributed execution
+6. **Lightweight mode (score 0–2):** Skip runtime dir — dispatch tasks via `task()` or sequentially in context, but keep status tracking in the workflow doc
 
-### Status Synchronization *(full orchestration only)*
+### Status Synchronization *(all routed tasks; full orchestration also updates `master_plan.md`)*
 After each atomic task completes:
-1. Update `.agentdocs/runtime/<task-id>/master_plan.md` status table
-2. Mark corresponding TODO in workflow document as done
+1. Mark corresponding TODO in workflow document as done
+2. Full orchestration only: update `.agentdocs/runtime/<task-id>/master_plan.md` status table
 3. Check if all TODOs complete → run memory sync → then archive workflow doc
+
+Do not report completion until both plan artifacts reflect the finished state.
 
 ### Cleanup Strategy
 After specific task completion:

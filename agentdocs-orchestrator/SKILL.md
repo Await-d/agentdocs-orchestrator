@@ -1,6 +1,6 @@
 ---
 name: agentdocs-orchestrator
-description: Advanced task orchestration system integrated with agentdocs knowledge management. Decomposes complex requests into atomic tasks, auto-creates workflow planning documents, manages multi-agent parallel execution, and syncs task status. Use when handling complex multi-step tasks, parallel execution needs, or sub-agent orchestration.
+description: Advanced task orchestration system integrated with agentdocs knowledge management. Decomposes complex requests into atomic tasks, auto-scores task difficulty before choosing direct/lightweight/full execution, creates workflow planning documents, manages multi-agent parallel execution, and syncs task status. Use this skill whenever the user asks to create or update a plan for non-trivial work, break down a multi-step task, assess task difficulty, choose between direct/lightweight/full execution, coordinate sub-agents, maintain `.agentdocs` workflow files, or keep plan/TODO markers in sync — even if they never say "orchestration" explicitly.
 ---
 
 # Agentdocs Orchestrator
@@ -8,14 +8,25 @@ description: Advanced task orchestration system integrated with agentdocs knowle
 ## When to Activate (Read First)
 
 **Activate** when:
-- Complex multi-step tasks (3+ steps with parallelizable subtasks)
+- Complex multi-step tasks (3+ steps, even if parallelism is not obvious yet)
 - User mentions "parallel", "concurrent", "subtasks", "agents", "sub-agent"
-- Task requires decomposition and cross-agent coordination
+- Task requires decomposition, cross-agent coordination, or explicit plan/routing assessment
+- User asks for a workflow, implementation plan, roadmap, task breakdown, TODO list, or difficulty grading for a piece of work
+- The task needs `.agentdocs` workflow docs, runtime plans, progress tracking, or completion-status syncing
 
 **Do NOT activate** for:
-- Sequential tasks with no parallel potential (just execute directly)
+- Tiny sequential tasks that clearly score `Direct` after assessment (for example, ≤2 atomic steps with no orchestration benefit)
 - Tasks with ≤2 clear steps (unnecessary overhead)
 - Single-file changes or simple refactors
+
+### High-confidence trigger cues
+
+Treat these requests as strong signals to load this skill:
+- "帮我拆一下任务 / 给我一个执行方案 / 做个工作流"
+- "评估这个任务难度 / 该走简单方案还是复杂方案"
+- "把这些子任务并行起来 / 帮我协调几个 agent"
+- "更新一下计划里的进度 / 把完成的任务勾掉"
+- "在 `.agentdocs` 里建 workflow / runtime / master_plan"
 
 ---
 
@@ -41,13 +52,29 @@ Before creating any documents, evaluate complexity across **two dimensions** and
 ```
 Score ≤ –1  → Execute directly. No .agentdocs needed.
 Score 0–2   → Lightweight mode:
-                1. Create workflow doc only (no runtime dir)
-                2. Execute via task() or sequentially in context
+                 1. Create workflow doc only (no runtime dir)
+                 2. Execute via task() or sequentially in context
 Score 3+    → Full orchestration:
-                workflow doc + runtime dir + master_plan + agent files
+                 workflow doc + runtime dir + master_plan
+                 execution method chosen separately:
+                 - Mode A: direct `task()` dispatch
+                 - Mode B/C: agent task files
 ```
 
 > **Authority rule:** The **score result is the final routing decision**. Step count is only one input signal inside the score, not a separate override.
+
+### Step 2.5: Record the routing decision (mandatory)
+
+Before creating a workflow doc, runtime dir, or task list, write a visible `## Complexity Assessment` block that records:
+
+- Each scoring signal that was considered
+- The numeric total
+- The selected mode (`Direct`, `Lightweight`, or `Full orchestration`)
+- One short justification for the selected mode
+
+If the selected mode is `Direct` and no workflow doc will be created, place the same `## Complexity Assessment` block in the response or task notes before executing.
+
+Never skip the written score. Never default to `Direct`, `Lightweight`, or `Full orchestration` because the task "feels simple" or because the mode seems convenient.
 
 ### Step 3: Decomposition check (before starting implementation)
 
@@ -60,7 +87,7 @@ If the answer to both #1 and #2 is YES → decompose and assign to agents.
 If #1 is YES but #2 is NO (overhead exceeds benefit) → execute sequentially in context.
 If #1 is NO → execute directly without decomposition.
 
-> **Rule of thumb:** When in doubt, start lightweight. You can escalate to full orchestration if scope grows.
+> **Routing discipline:** When evidence is incomplete, inspect enough context to finish the score. Do **not** default to lightweight. Only choose a mode after the written score is recorded, and re-score if scope expands.
 
 ### Quick classification examples
 
@@ -152,21 +179,24 @@ See [cli-integration.md](cli-integration.md) for full reference.
 
 1. Detect user language — all documents use the same language as the user
 2. Read `.agentdocs/index.md` for existing relevant context
-3. Analyze intent, identify dependencies (build DAG)
-4. If routing selects lightweight or full orchestration: create a workflow document
-5. Break down into atomic tasks (target: 1–5 min each)
+3. Do a minimal intent parse (goal, scope, major modules/systems involved)
+4. Record a `## Complexity Assessment` section with score breakdown, total, and chosen mode
+5. If routing selects `Direct`, keep that written assessment in the response or task notes and execute without `.agentdocs`
+6. If routing selects `Lightweight` or `Full orchestration`, create a workflow document and copy the same complexity assessment into it
+7. For routed tasks, analyze dependencies (build DAG)
+8. Break down into atomic tasks (target: 1–5 min each)
 
 ### Phase 2️⃣ Agent Assignment
 
-> **Lightweight mode (when score = 0–2; typically 3–4 step tasks):** Skip runtime dir. Track tasks inline or in the workflow doc only. Dispatch directly via `task()` or execute sequentially in context — no `master_plan.md` or `agent_tasks/` files needed.
+> **Lightweight mode (when score = 0–2; typically 3–4 step tasks):** Skip runtime dir. Track tasks in the workflow doc. Inline/context notes are optional summaries only. Dispatch directly via `task()` or execute sequentially in context — no `master_plan.md` or `agent_tasks/` files needed.
 >
-> **Full orchestration (when score ≥ 3; commonly 5+ step or high-coordination tasks):** Create task-specific runtime directory: `.agentdocs/runtime/<task-id>/`, create `master_plan.md` with task decomposition and status table, generate agent task files (Mode B/C) OR dispatch via `task()` (Mode A).
+> **Full orchestration (when score ≥ 3; commonly 5+ step or high-coordination tasks):** Create task-specific runtime directory: `.agentdocs/runtime/<task-id>/`, create `master_plan.md` with task decomposition and status table, then choose execution method: generate agent task files for Mode B/C, or dispatch directly via `task()` for Mode A.
 
 **Status icons:** 🟡 Pending | 🔵 Running | ✅ Completed | ❌ Failed | ⏸️ Waiting
 
 ### Phase 3️⃣ Parallel Execution
 
-**Lightweight mode:** Dispatch tasks inline via `task()` (Mode A) or run sequentially in context (Mode B). No result files or status table needed — track progress in the workflow doc or in context.
+**Lightweight mode:** Dispatch tasks inline via `task()` (Mode A) or run sequentially in context (Mode B). No runtime result files are needed, but progress must still be tracked in the workflow doc. Current-context notes are optional summaries, not a substitute for workflow markers.
 
 **Full orchestration only:**
 - Mode A: `task(run_in_background=true)` + `background_output()`
@@ -185,10 +215,14 @@ See [cli-integration.md](cli-integration.md) for full reference.
 
 ### Phase 5️⃣ Status Sync, Memory Sync, and Cleanup
 
-1. Extract durable memory and append to `.agentdocs/index.md` (see Memory Protocol) — **do this before archiving**
-2. Update workflow TODOs — mark completed items (`- [x] T-01 ✅`)
-3. If all TODOs done: move workflow doc to `.agentdocs/workflow/done/`, update `index.md`
-4. **Full orchestration only:** Cleanup runtime dir: `rm -rf .agentdocs/runtime/YYMMDD-task-name/`
+1. Immediately update plan markers for every completed task:
+   - Workflow TODOs (`- [x] T-01 ✅`)
+   - Full orchestration only: matching `.agentdocs/runtime/<task-id>/master_plan.md` status rows
+2. In parallel runs, a coordinator may serialize shared file writes, but the workflow/master-plan sync must still happen before completion is reported
+3. Do not report a subtask or task as complete until those markers are synced
+4. Extract durable memory and append to `.agentdocs/index.md` (see Memory Protocol) — **do this before archiving**
+5. If all TODOs done: move workflow doc to `.agentdocs/workflow/done/`, update `index.md`
+6. **Full orchestration only:** Cleanup runtime dir: `rm -rf .agentdocs/runtime/YYMMDD-task-name/`
 
 ---
 
@@ -271,6 +305,17 @@ Before implementing complex tasks, read in this order:
 ## Solution Design
 [High-level approach and key decisions]
 
+## Complexity Assessment
+- Atomic steps: [count] → [score]
+- Parallel streams: [yes/no] → [score]
+- Modules/systems/services: [count] → [score]
+- Long step (>5 min): [yes/no] → [score]
+- Persisted review artifacts: [yes/no] → [score]
+- OpenCode available: [yes/no] → [score]
+- **Total score**: [number]
+- **Chosen mode**: [Direct / Lightweight / Full orchestration]
+- **Routing rationale**: [1-2 sentences]
+
 ## Implementation Plan
 
 ### Phase 1: [Phase Name]
@@ -322,12 +367,13 @@ All documents use the user's language:
 
 ## Best Practices
 
-1. **Lightweight first**: Only create runtime dirs when you need agent isolation or CLI execution
+1. **Score before routing**: Record the written difficulty score before choosing any mode
 2. **Mode A preferred**: In OpenCode environments, use `task()` over CLI scripts
-3. **Status sync**: Update workflow TODOs after each subtask completion
-4. **Index maintenance**: Register new workflows in `index.md`; remove when moved to `done/`
-5. **Clean runtime**: Delete runtime dir after task completion (it's temporary)
-6. **Chunked file creation**: Max 150 lines per write operation
+3. **Status sync is part of completion**: Update workflow TODOs after each subtask completion; for full orchestration, sync `master_plan.md` in the same step
+4. **No unchecked completed tasks**: Never leave a finished task marked pending in the workflow doc or master plan
+5. **Index maintenance**: Register new workflows in `index.md`; remove when moved to `done/`
+6. **Clean runtime**: Delete runtime dir after task completion (it's temporary)
+7. **Chunked file creation**: Max 150 lines per write operation
 
 ---
 
@@ -368,7 +414,7 @@ Always extract only what the downstream agent needs to proceed.
 Task isolation rule: only handle errors from the current task's runtime. Do not modify other concurrent tasks' runtimes.
 
 **Lightweight mode:**
-1. Note the blocker in the workflow doc or current context
+1. Note the blocker in the workflow doc (current-context summary optional)
 2. Retry inline or re-dispatch the failed subtask via `task()`
 3. If unresolvable: mark the subtask failed in the workflow doc and proceed or stop
 

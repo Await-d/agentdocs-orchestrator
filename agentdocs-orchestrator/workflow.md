@@ -2,7 +2,7 @@
 
 ## Complete Execution Flow Diagram
 
-> **Note:** Phases 2–4 below describe the **full orchestration path** (when routing score ≥ 3; commonly 5+ steps or high-coordination tasks). For lightweight mode (score 0–2; typically 3–4 steps), skip Phases 2–4 runtime artifacts and track tasks inline.
+> **Note:** Phases 2–4 below describe the **full orchestration path** (when routing score ≥ 3; commonly 5+ steps or high-coordination tasks). For lightweight mode (score 0–2; typically 3–4 steps), skip Phases 2–4 runtime artifacts and keep task tracking in the workflow doc.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -12,10 +12,11 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │ Phase 1: Task Analysis and Decomposition                         │
 │ ┌───────────────────────────────────────────────────────────┐   │
-│ │ 1.1 Parse user intent                                      │   │
-│ │ 1.2 Identify dependencies (build DAG)                      │   │
-│ │ 1.3 Break down into atomic tasks                           │   │
-│ │ 1.4 Define Input/Output for each task                      │   │
+│ │ 1.1 Minimal intent parse                                   │   │
+│ │ 1.2 Record complexity assessment + route                   │   │
+│ │ 1.3 Identify dependencies (build DAG)                      │   │
+│ │ 1.4 Break down into atomic tasks                           │   │
+│ │ 1.5 Define Input/Output for each task                      │   │
 │ └───────────────────────────────────────────────────────────┘   │
 │ 📄 Output: .agentdocs/workflow/<task-id>.md                               │
 └─────────────────────────────────┬───────────────────────────────┘
@@ -82,9 +83,9 @@
 
 ## Phase 1: Task Analysis and Decomposition (Detailed)
 
-### 1.0 Complexity Assessment (Required Before Any Action)
+### 1.0 Complexity Assessment (Required Before Detailed Decomposition)
 
-Before parsing intent or building a DAG, score the task using the two-dimension model:
+After a minimal intent parse (goal, scope, major modules/systems), but before building a DAG or decomposing into tasks, score the task using the two-dimension model:
 
 | Signal | Score |
 |--------|-------|
@@ -100,9 +101,28 @@ Before parsing intent or building a DAG, score the task using the two-dimension 
 **Routing:**
 - Score ≤ –1 → Execute directly (no `.agentdocs` needed)
 - Score 0–2 → Lightweight mode (workflow doc only)
-- Score 3+ → Full orchestration (workflow + runtime + master_plan + agent files)
+- Score 3+ → Full orchestration (workflow + runtime + master_plan; use agent task files only for Mode B/C)
 
 > **Authority rule:** Use the score result as the final routing decision. Step count alone does not override the score.
+
+**Scoring output is mandatory:**
+- Write the score into a visible `## Complexity Assessment` section before creating tasks or runtime artifacts.
+- Include each signal considered, the total score, and the chosen mode.
+- Do not default to `Direct`, `Lightweight`, or `Full orchestration` without a written score.
+- If the chosen mode is `Direct`, keep the block in the response or task notes because no `.agentdocs` artifact is created.
+
+```markdown
+## Complexity Assessment
+- Atomic steps: 4 → 0
+- Parallel streams: yes → +2
+- Modules/systems/services: 3 → +1
+- Long step (>5 min): no → 0
+- Persisted review artifacts: no → 0
+- OpenCode available: yes → -1
+- **Total score**: 2
+- **Chosen mode**: Lightweight
+- **Why**: Multi-file review benefits from decomposition, but does not justify runtime artifacts.
+```
 
 **Decomposition check (if score ≥ 0):**
 1. **Can it be split?** — 2+ independent subtasks that can run in parallel?
@@ -492,7 +512,11 @@ For bug-fix tasks, also include TDD evidence:
 
 **Full orchestration only:** every state change must update `.agentdocs/runtime/<task-id>/master_plan.md`.
 
-**Lightweight mode:** record state directly in the workflow doc or current context instead.
+**All routed tasks:** every completed task must also update the matching workflow checkbox before you report completion.
+
+**Lightweight mode:** record state directly in the workflow doc. Current-context updates are optional summaries only.
+
+No task may be reported as complete while its workflow row/checkbox still shows pending.
 
 ```markdown
 ## Execution Log
@@ -522,7 +546,7 @@ For bug-fix tasks, also include TDD evidence:
 
 ### 5.1 Update Workflow Document
 
-After each task completion, synchronize status to workflow document:
+After each task completion, synchronize status to workflow document immediately. This is a required completion step, not an optional cleanup pass.
 
 ```markdown
 # .agentdocs/workflow/YYMMDD-task-name.md
@@ -537,6 +561,12 @@ After each task completion, synchronize status to workflow document:
 - [ ] T-03: Implement feature X
 - [ ] T-04: Add tests
 ```
+
+**Required sync rule:**
+- If a task finished, flip its workflow marker in the same step.
+- For full orchestration, update the matching `master_plan.md` status row to `✅ Completed` at the same time.
+- In parallel runs, use a coordinator if needed to serialize shared file writes, but do not skip or delay the sync beyond task completion.
+- Do not batch these updates until the end.
 
 ### 5.2 Durable Memory Extraction (Required — do BEFORE archiving)
 
@@ -563,7 +593,7 @@ Extract reusable knowledge into `.agentdocs/index.md` **before** moving the work
 
 ### 5.3 Check Task Completion
 
-After memory sync, when all TODOs in workflow document are marked as done:
+After memory sync, when all TODOs in workflow document are marked as done, and full-orchestration `master_plan.md` rows are also synced to their final states:
 
 1. **Move to archive**:
    ```bash
@@ -630,7 +660,10 @@ Before considering task complete:
 - [ ] If >3 files, work executed in segmented stages
 - [ ] Potential Bug Checklist attached
 - [ ] Test Case Checklist attached
+- [ ] Complexity Assessment recorded before routing
 - [ ] All workflow TODOs marked as done
+- [ ] No completed task left unchecked in workflow doc
+- [ ] Full-orchestration `master_plan.md` statuses synced with workflow doc
 - [ ] Workflow document moved to `done/` directory
 - [ ] Index.md updated (removed from current tasks)
 - [ ] Task runtime directory cleaned up (full orchestration only — skip for lightweight mode)
