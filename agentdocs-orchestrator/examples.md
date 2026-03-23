@@ -19,6 +19,16 @@
 **Primary Goal**: Generate a comprehensive code analysis report
 **Success Criteria**: Cover code quality, security, and performance dimensions
 
+## Complexity Assessment
+- Atomic steps: 5 → +2
+- Parallel streams: yes → +2
+- Modules/systems/services: 3 analysis domains → +1
+- Long step (>5 min): no → 0
+- Persisted review artifacts: yes → +1
+- OpenCode available: yes → -1
+- **Total score**: 5
+- **Chosen mode**: Full orchestration
+
 ## Task Decomposition
 
 ### Dependency Graph
@@ -210,6 +220,30 @@ Scan the project's src/ directory, read all TypeScript files (.ts, .tsx)
 [Complete list of issues...]
 ```
 
+### Phase 5️⃣ Status Sync
+
+```markdown
+# .agentdocs/workflow/260112-code-analysis.md
+
+## Implementation Plan
+- [x] T-01: Scan project files ✅
+- [x] T-02: Analyze code quality ✅
+- [x] T-03: Scan security issues ✅
+- [x] T-04: Analyze performance ✅
+- [x] T-05: Generate report ✅
+
+# .agentdocs/runtime/260112-code-analysis/master_plan.md
+
+## Task Status Table
+| Task ID | Agent | Status | Start Time | End Time |
+|---------|-------|--------|------------|----------|
+| T-01 | Agent-01 | ✅ Completed | 10:00 | 10:02 |
+| T-02 | Agent-02 | ✅ Completed | 10:02 | 10:05 |
+| T-03 | Agent-03 | ✅ Completed | 10:02 | 10:05 |
+| T-04 | Agent-04 | ✅ Completed | 10:02 | 10:04 |
+| T-05 | Agent-05 | ✅ Completed | 10:05 | 10:06 |
+```
+
 ---
 
 ## Example 2: Multi-Document Translation Task
@@ -220,6 +254,19 @@ Scan the project's src/ directory, read all TypeScript files (.ts, .tsx)
 ---
 
 ### Task Decomposition
+
+### Complexity Assessment
+
+```markdown
+- Atomic steps: 5 → +2
+- Parallel streams: yes → +2
+- Modules/systems/services: 1 docs area → 0
+- Long step (>5 min): no → 0
+- Persisted review artifacts: yes → +1
+- OpenCode available: yes → -1
+- **Total score**: 4
+- **Chosen mode**: Full orchestration
+```
 
 ```markdown
 ## Task Decomposition
@@ -304,6 +351,33 @@ Total duration: 45 seconds (Serial estimate: 180 seconds)
 Parallel efficiency: 4x speedup
 ```
 
+### Completion Sync
+
+```markdown
+# .agentdocs/workflow/260112-translate.md
+
+## Implementation Plan
+- [x] T-01: Translate `docs/intro.md` ✅
+- [x] T-02: Translate `docs/getting-started.md` ✅
+- [x] T-03: Translate `docs/api-reference.md` ✅
+- [x] T-04: Translate `docs/tutorials.md` ✅
+- [x] T-05: Translate `docs/faq.md` ✅
+
+## Notes
+- All completed translation tasks were marked done before archiving.
+
+# .agentdocs/runtime/260112-translate/master_plan.md
+
+## Task Status Table
+| Task ID | Agent | Status | Start Time | End Time |
+|---------|-------|--------|------------|----------|
+| T-01 | Agent-01 | ✅ Completed | 10:00 | 10:08 |
+| T-02 | Agent-02 | ✅ Completed | 10:00 | 10:07 |
+| T-03 | Agent-03 | ✅ Completed | 10:00 | 10:09 |
+| T-04 | Agent-04 | ✅ Completed | 10:00 | 10:08 |
+| T-05 | Agent-05 | ✅ Completed | 10:00 | 10:06 |
+```
+
 ---
 
 ## Lightweight Mode Mini Example
@@ -314,12 +388,14 @@ Parallel efficiency: 4x speedup
 ### Complexity Assessment
 
 ```markdown
-Atomic steps: 3 → 0
-Multiple independent parallel streams: yes → +2
-Involves 3 modules: yes → +1
-OpenCode available: yes → -1
-
-Total score = 2 → Lightweight mode
+- Atomic steps: 3 → 0
+- Parallel streams: yes → +2
+- Modules/systems/services: 3 → +1
+- Long step (>5 min): no → 0
+- Persisted review artifacts: no → 0
+- OpenCode available: yes → -1
+- **Total score**: 2
+- **Chosen mode**: Lightweight
 ```
 
 ### Workflow Artifact
@@ -329,6 +405,16 @@ Total score = 2 → Lightweight mode
 
 ## Task Overview
 Review three related API handlers for auth issues and summarize fixes.
+
+## Complexity Assessment
+- Atomic steps: 3 → 0
+- Parallel streams: yes → +2
+- Modules/systems/services: 3 → +1
+- Long step (>5 min): no → 0
+- Persisted review artifacts: no → 0
+- OpenCode available: yes → -1
+- **Total score**: 2
+- **Chosen mode**: Lightweight
 
 ## Implementation Plan
 - [ ] T-01: Review `auth.ts` and capture auth flow
@@ -353,6 +439,11 @@ const t2 = task(category="quick", run_in_background=true, load_skills=[], prompt
 ### Completion
 
 ```markdown
+## Implementation Plan
+- [x] T-01: Review `auth.ts` and capture auth flow ✅
+- [x] T-02: Review `users.ts` and identify auth gaps ✅
+- [x] T-03: Review `admin.ts` and summarize cross-file issues ✅
+
 ## Notes
 - Memory sync: completed
 - Archived to `.agentdocs/workflow/done/260112-auth-review.md`
@@ -366,6 +457,19 @@ const t2 = task(category="quick", run_in_background=true, load_skills=[], prompt
 > "Test all API endpoints for response time and correctness"
 
 ---
+
+### Complexity Assessment
+
+```markdown
+- Atomic steps: 5 → +2
+- Parallel streams: yes → +2
+- Modules/systems/services: 5 endpoints → +1
+- Long step (>5 min): no → 0
+- Persisted review artifacts: yes → +1
+- OpenCode available: yes → -1
+- **Total score**: 5
+- **Chosen mode**: Full orchestration
+```
 
 ### Task Decomposition
 
@@ -439,11 +543,35 @@ const t2 = task(category="quick", run_in_background=true, load_skills=[], prompt
 | 5 | POST /api/users | 856ms |
 ```
 
+### Completion Sync
+
+```markdown
+# .agentdocs/workflow/260112-endpoint-test.md
+
+## Implementation Plan
+- [x] T-01: Test GET /api/users ✅
+- [x] T-02: Test GET /api/users/:id ✅
+- [x] T-03: Test POST /api/users ✅
+- [x] T-04: Test GET /api/products ✅
+- [x] T-05: Test GET /api/orders ✅
+
+# .agentdocs/runtime/260112-endpoint-test/master_plan.md
+
+## Task Status Table
+| Task ID | Agent | Status | Start Time | End Time |
+|---------|-------|--------|------------|----------|
+| T-01 | Agent-01 | ✅ Completed | 11:00 | 11:02 |
+| T-02 | Agent-02 | ✅ Completed | 11:00 | 11:03 |
+| T-03 | Agent-03 | ✅ Completed | 11:00 | 11:05 |
+| T-04 | Agent-04 | ✅ Completed | 11:00 | 11:02 |
+| T-05 | Agent-05 | ✅ Completed | 11:00 | 11:03 |
+```
+
 ---
 
 ## Example 4: Real Execution Using Claude CLI (Full Orchestration)
 
-> **Note:** This example uses full orchestration mode (runtime dir + agent files). Use it when the routing score is **≥ 3** — typically 5+ steps or any task with enough coordination/parallelism to justify runtime artifacts.
+> **Note:** This example continues into full orchestration because the routing score was calculated first and landed at **≥ 3**. Never start by assuming full orchestration.
 
 ### Complete PowerShell Script
 
@@ -463,12 +591,26 @@ Write-Host ""
 Write-Host "📋 Phase 1: Analyzing request and decomposing tasks..." -ForegroundColor Yellow
 
 $decomposePrompt = @"
-You are a task decomposition expert. Please decompose the following request into enough independent atomic tasks to justify **full orchestration** under the score-based routing model.
+You are a task orchestration planner.
+
+First, calculate the routing score using the skill's scoring model.
+Then choose the mode:
+- Score ≤ -1 → direct
+- Score 0-2 → lightweight
+- Score ≥ 3 → full orchestration
+
+Only if the score is ≥ 3 should you return a full orchestration task list.
+Do not invent extra tasks just to force full orchestration.
 
 Request: $Request
 
 Output format (JSON):
 {
+  "score_breakdown": [
+    {"signal": "Atomic steps", "score": 0, "reason": "..."}
+  ],
+  "total_score": 3,
+  "mode": "Full orchestration",
   "tasks": [
     {"id": "T-01", "name": "Task name", "description": "Detailed description", "deps": []}
   ]
@@ -477,6 +619,11 @@ Output format (JSON):
 
 $taskJson = claude --output-format json -p $decomposePrompt 2>$null
 try { $tasks = $taskJson | ConvertFrom-Json } catch { Write-Error "Failed to parse JSON from claude output: $_"; exit 1 }
+
+if ($tasks.mode -ne "Full orchestration") {
+    Write-Error "Routing selected mode '$($tasks.mode)'. This example should continue only when the score chooses full orchestration."
+    exit 1
+}
 
 Write-Host "  ✅ Decomposition complete: $($tasks.tasks.Count) tasks" -ForegroundColor Green
 
@@ -494,11 +641,38 @@ New-Item -ItemType Directory -Path ".agentdocs/workflow" -Force | Out-Null
 ## Task Overview
 $Request
 
+## Complexity Assessment
+$($tasks.score_breakdown | ForEach-Object { "- $($_.signal): $($_.reason) → $($_.score)" } | Out-String)
+- **Total score**: $($tasks.total_score)
+- **Chosen mode**: $($tasks.mode)
+
 ## Implementation Plan
 - [ ] Run distributed orchestration via orchestrate.ps1
 "@ | Out-File $workflowPath -Encoding UTF8
 New-Item -ItemType Directory -Path "$orchestratorDir/agent_tasks" -Force | Out-Null
 New-Item -ItemType Directory -Path "$orchestratorDir/results" -Force | Out-Null
+
+@"
+# 🎯 Distributed Task Plan: $taskId
+
+## Workflow Reference
+`.agentdocs/workflow/$taskId.md`
+
+## Complexity Assessment
+$($tasks.score_breakdown | ForEach-Object { "- $($_.signal): $($_.reason) → $($_.score)" } | Out-String)
+- **Total score**: $($tasks.total_score)
+- **Chosen mode**: $($tasks.mode)
+
+## 🤖 Agent Assignment
+| Task ID | Agent | Status | Start Time | End Time |
+|---------|-------|--------|------------|----------|
+| T-01 | Agent-01 | 🟡 Pending | - | - |
+
+## 📝 Execution Log
+### [$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Initialization
+- Task plan created
+- Routing score recorded
+"@ | Out-File "$orchestratorDir/master_plan.md" -Encoding UTF8
 
 $agentIndex = 1
 foreach ($task in $tasks.tasks) {
@@ -604,8 +778,8 @@ $jobs | Remove-Job
 Write-Host ""
 Write-Host "🧠 Phase 5: Syncing status and cleaning up..." -ForegroundColor Yellow
 
-# Update workflow TODO (manual step — mark items done in .agentdocs/workflow/$taskId.md)
-Write-Host "  ✏️  Update .agentdocs/workflow/$taskId.md — mark all TODOs as done" -ForegroundColor Gray
+# Required status sync before declaring success
+Write-Host "  ✏️  Required: update .agentdocs/workflow/$taskId.md and $orchestratorDir/master_plan.md to mark completed tasks" -ForegroundColor Gray
 
 # Memory sync reminder
 Write-Host "  💾 Extract durable memory into .agentdocs/index.md before archiving" -ForegroundColor Gray

@@ -12,6 +12,22 @@
 **Primary Goal**: [One sentence describing the final result to achieve]
 **Success Criteria**: [How to determine task completion]
 
+## Complexity Assessment
+
+| Signal | Observation | Score |
+|--------|-------------|-------|
+| Atomic steps | [count / note] | [score] |
+| Parallel streams | [yes/no + note] | [score] |
+| Modules/systems/services | [count / note] | [score] |
+| Long step (>5 min) | [yes/no] | [score] |
+| Persisted review artifacts | [yes/no] | [score] |
+| OpenCode available | [yes/no] | [score] |
+| **Total** |  | **[score]** |
+
+- **Chosen mode**: [Direct / Lightweight / Full orchestration]
+- **Routing rationale**: [Why this mode fits]
+- **Discipline**: Never leave this section blank; do not choose a mode before writing the score.
+
 ## ✅ Approval Gate (Must Pass Before Coding)
 - [ ] Plan includes scope, impacted files, risk analysis, and verification strategy
 - [ ] User explicitly approved implementation (e.g., "approved", "start")
@@ -83,6 +99,13 @@
 ### [YYYY-MM-DD HH:MM:SS] Initialization
 - Task plan created
 - Assigned N Agents
+
+## 🔄 Completion Sync Gate
+
+- [ ] Workflow TODOs updated for each completed task
+- [ ] Full orchestration only: `master_plan.md` status rows synced to actual task state
+- [ ] No completed task remains pending in any plan artifact
+- [ ] If tasks ran in parallel, a coordinator serialized shared plan-file updates
 
 ---
 
@@ -167,6 +190,9 @@
 - [Constraint 3: e.g., time limit]
 - [Constraint 4: do not implement code before approval gate is passed]
 - [Constraint 5: if expected changes >3 files, execute by segmented stages]
+- [Constraint 6: before reporting success, update the workflow checkbox for this task]
+- [Constraint 7: if full orchestration is active, also update the matching `master_plan.md` status row]
+- [Constraint 8: if direct writes to shared plan files are unsafe, emit the exact marker change for the coordinator to apply immediately]
 
 ---
 
@@ -250,6 +276,15 @@
 ### TDD Evidence (for bug fixes)
 - Red evidence (before fix): [failed test or script output]
 - Green evidence (after fix): [passed test output]
+
+---
+
+## 🔄 Plan Sync Confirmation (Required)
+
+- Workflow marker updated: [path + `- [x] T-XX` entry]
+- Full orchestration only: `master_plan.md` row updated: [path + status]
+- Verified no stale pending marker remains for this task: [yes/no]
+- If a coordinator applied the write: [who applied it + when]
 
 ---
 
@@ -677,6 +712,16 @@ $workflowDoc = @"
 ## Solution Design
 [Fill in approach and key decisions]
 
+## Complexity Assessment
+- Atomic steps: [count] → [score]
+- Parallel streams: [yes/no] → [score]
+- Modules/systems/services: [count] → [score]
+- Long step (>5 min): [yes/no] → [score]
+- Persisted review artifacts: [yes/no] → [score]
+- OpenCode available: [yes/no] → [score]
+- **Total score**: [number]
+- **Chosen mode**: [Direct / Lightweight / Full orchestration]
+
 ## Implementation Plan
 
 ### Phase 1: [Phase Name]
@@ -703,6 +748,23 @@ $masterPlan = @"
 **Primary Goal**: [Goal description]
 **Success Criteria**: [Success criteria]
 
+## Complexity Assessment
+
+| Signal | Observation | Score |
+|--------|-------------|-------|
+| Atomic steps | [count / note] | [score] |
+| Parallel streams | [yes/no + note] | [score] |
+| Modules/systems/services | [count / note] | [score] |
+| Long step (>5 min) | [yes/no] | [score] |
+| Persisted review artifacts | [yes/no] | [score] |
+| OpenCode available | [yes/no] | [score] |
+| **Total** |  | **[score]** |
+
+- **Chosen mode**: [Direct / Lightweight / Full orchestration]
+- **Routing rationale**: [Why this mode fits]
+
+If the mode is `Direct`, copy the same block into the response or task notes before execution because no workflow doc will be created.
+
 ---
 
 ## 📋 Task Decomposition
@@ -725,6 +787,7 @@ $masterPlan = @"
 
 ### [$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Initialization
 - Task plan created
+- Routing score recorded
 "@
 
 $masterPlan | Out-File "$runtimeDir/master_plan.md" -Encoding UTF8
