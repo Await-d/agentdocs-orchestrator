@@ -40,6 +40,14 @@
     "should_trigger": true
   },
   {
+    "query": "帮我 lint 一下 `.agentdocs/workflow/260401-migration.md` 和 runtime 状态，看看能不能安全归档。",
+    "should_trigger": true
+  },
+  {
+    "query": "这个 orchestration 做完了，帮我清理当前 task 的 runtime，但保留失败重试证据，别动别的任务。",
+    "should_trigger": true
+  },
+  {
     "query": "请修一下 `src/utils/date.ts` 里一个格式化 bug，应该就一两行。",
     "should_trigger": false
   },

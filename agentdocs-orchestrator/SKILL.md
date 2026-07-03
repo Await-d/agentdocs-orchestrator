@@ -194,6 +194,10 @@ See [cli-integration.md](cli-integration.md) for full reference.
 
 **Status icons:** 🟡 Pending | 🔵 Running | ✅ Completed | ❌ Failed | ⏸️ Waiting
 
+Status changes must follow [state-machine.md](state-machine.md). Workers may write
+result files, but only the coordinator updates workflow TODOs or `master_plan.md`
+status rows unless explicitly assigned.
+
 ### Phase 3️⃣ Parallel Execution
 
 **Lightweight mode:** Dispatch tasks inline via `task()` (Mode A) or run sequentially in context (Mode B). No runtime result files are needed, but progress must still be tracked in the workflow doc. Current-context notes are optional summaries, not a substitute for workflow markers.
@@ -222,7 +226,13 @@ See [cli-integration.md](cli-integration.md) for full reference.
 3. Do not report a subtask or task as complete until those markers are synced
 4. Extract durable memory and append to `.agentdocs/index.md` (see Memory Protocol) — **do this before archiving**
 5. If all TODOs done: move workflow doc to `.agentdocs/workflow/done/`, update `index.md`
-6. **Full orchestration only:** Cleanup runtime dir: `rm -rf .agentdocs/runtime/YYMMDD-task-name/`
+6. **Full orchestration only:** Delete the runtime dir only after the final
+   runtime cleanup gates in [cleanup-policy.md](cleanup-policy.md) pass. The
+   cleanup target must be the exact current runtime path:
+   `.agentdocs/runtime/<task-id>/`.
+
+Before reporting completion, validate the active artifacts against
+[schemas.md](schemas.md) and the manual checklist in [validation.md](validation.md).
 
 ---
 
@@ -329,6 +339,8 @@ Before implementing complex tasks, read in this order:
 [Important observations, blockers, decisions]
 ```
 
+The full required artifact contracts are defined in [schemas.md](schemas.md).
+
 ---
 
 ## Mandatory Gates (When Writing Code)
@@ -371,9 +383,10 @@ All documents use the user's language:
 2. **Mode A preferred**: In OpenCode environments, use `task()` over CLI scripts
 3. **Status sync is part of completion**: Update workflow TODOs after each subtask completion; for full orchestration, sync `master_plan.md` in the same step
 4. **No unchecked completed tasks**: Never leave a finished task marked pending in the workflow doc or master plan
-5. **Index maintenance**: Register new workflows in `index.md`; remove when moved to `done/`
-6. **Clean runtime**: Delete runtime dir after task completion (it's temporary)
-7. **Chunked file creation**: Max 150 lines per write operation
+5. **Coordinator owns shared state**: Workers write results; coordinators write workflow, master plan, archive, and cleanup changes
+6. **Index maintenance**: Register new workflows in `index.md`; remove when moved to `done/`
+7. **Protected cleanup**: Follow [cleanup-policy.md](cleanup-policy.md); delete only the current task runtime dir after archive readiness and final runtime cleanup gates pass
+8. **Chunked file creation**: Max 150 lines per write operation
 
 ---
 
@@ -425,5 +438,9 @@ Task isolation rule: only handle errors from the current task's runtime. Do not 
 - [RULES.md](RULES.md) — Mandatory guardrails (project-configurable defaults)
 - [workflow.md](workflow.md) — Detailed workflow reference with scheduling algorithm
 - [templates.md](templates.md) — Complete template collection (master_plan, agent task, result, final output)
+- [state-machine.md](state-machine.md) — Canonical status values, transitions, retry, and archival rules
+- [schemas.md](schemas.md) — Required structured sections and metadata for workflow/runtime artifacts
+- [validation.md](validation.md) — Manual validation checklist and future `agentdocs` CLI command design
+- [cleanup-policy.md](cleanup-policy.md) — Protected cleanup gates for runtime, archival, orphan artifacts, and stale locks
 - [cli-integration.md](cli-integration.md) — Claude CLI Mode C integration
 - [examples.md](examples.md) — Practical usage examples (code review, translation, API testing, bug fix with TDD)

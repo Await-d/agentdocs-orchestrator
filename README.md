@@ -24,6 +24,12 @@
 - **进度可视化** - 使用状态图标清晰展示任务进度
 - **完成后归档** - 已完成任务自动移至归档目录
 
+### 5. 可校验的编排契约
+- **状态机约束** - 明确任务状态、合法流转、失败重试与归档条件
+- **结构化 Artifact Schema** - 为 workflow、master plan、agent task、result、final output 定义必需字段
+- **Lint / Doctor 设计** - 为后续 CLI 自动校验、同步和归档提供设计边界
+- **受保护清理策略** - 明确 runtime 删除、证据保留、孤儿 runtime 和 stale lock 处理规则
+
 ---
 
 ## 📁 目录结构
@@ -172,6 +178,10 @@ DAG 依赖:    T-01 ───→ T-03
 | [RULES.md](agentdocs-orchestrator/RULES.md) | 强制执行规则（方案先行、TDD、分段改动）|
 | [workflow.md](agentdocs-orchestrator/workflow.md) | 详细工作流程说明（含调度算法）|
 | [templates.md](agentdocs-orchestrator/templates.md) | 完整模板集合（master_plan、agent task、result、final output）|
+| [state-machine.md](agentdocs-orchestrator/state-machine.md) | 状态机契约（状态值、合法流转、失败重试、归档条件）|
+| [schemas.md](agentdocs-orchestrator/schemas.md) | workflow/runtime artifact 的结构化字段要求 |
+| [validation.md](agentdocs-orchestrator/validation.md) | 手动校验清单与未来 `agentdocs` CLI 设计 |
+| [cleanup-policy.md](agentdocs-orchestrator/cleanup-policy.md) | 受保护清理策略（runtime 删除、证据保留、孤儿目录、stale lock）|
 | [cli-integration.md](agentdocs-orchestrator/cli-integration.md) | Claude CLI 深度集成（Mode C）|
 | [examples.md](agentdocs-orchestrator/examples.md) | 实际使用示例（代码审查、翻译、API 测试、TDD Bug 修复）|
 

@@ -24,6 +24,24 @@
       "prompt": "我有一个不确定复杂度的任务：要不要给 analytics 模块加一个 runtime orchestration？涉及 3 个 ingestion job、1 个 dashboard、还有文档同步。请先评估难度和模式，再给方案。",
       "expected_output": "Does not assume orchestration up front; instead writes a Complexity Assessment, picks direct/lightweight/full based on the scoring model, and explains the route in the plan.",
       "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "Agent-03 执行失败了，我想重试一次。请更新这个任务状态时遵守状态机，不要直接把 failed 改成 completed，也要保留第一次失败证据。",
+      "expected_output": "Uses the canonical state machine, records failed -> running as a retry transition, preserves attempt-specific failure evidence, and only marks completed after verified output plus workflow/master_plan sync.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "帮我检查 `.agentdocs/workflow/260401-migration.md` 和对应 runtime 有没有状态不同步、缺少 Complexity Assessment、或者可以归档前的阻塞项。",
+      "expected_output": "Runs the manual equivalent of agentdocs lint/doctor: checks required schema sections, complexity fields, status consistency, dependency references, final output, memory sync, archive readiness gates, runtime cleanup blockers, and safe archive readiness.",
+      "files": []
+    },
+    {
+      "id": 7,
+      "prompt": "这个 full orchestration 任务已经完成了，帮我做收尾清理。注意不要误删其他 runtime，也不要删掉失败重试证据。",
+      "expected_output": "Treats cleanup as a coordinator-only lifecycle action, separates archive readiness from final runtime cleanup, checks no task is running, verifies workflow/master_plan sync, final_output and memory sync decision, preserves retry/failure evidence, and targets only the exact current runtime path.",
+      "files": []
     }
   ]
 }
