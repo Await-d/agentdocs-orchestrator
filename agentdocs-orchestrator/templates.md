@@ -104,6 +104,7 @@
 
 - [ ] Workflow TODOs updated for each completed task
 - [ ] Full orchestration only: `master_plan.md` status rows synced to actual task state
+- [ ] Implementation plan reflects failed, retried, abandoned, newly discovered, obsolete, blocked, or unplanned work
 - [ ] No completed task remains pending in any plan artifact
 - [ ] If tasks ran in parallel, a coordinator serialized shared plan-file updates
 
@@ -283,6 +284,7 @@
 
 - Workflow marker updated: [path + `- [x] T-XX` entry]
 - Full orchestration only: `master_plan.md` row updated: [path + status]
+- Plan drift handled: [none / added T-XX / abandoned T-XX / split T-XX / noted unplanned work]
 - Verified no stale pending marker remains for this task: [yes/no]
 - If a coordinator applied the write: [who applied it + when]
 
@@ -729,6 +731,7 @@ $workflowDoc = @"
 
 ## Notes
 [Important observations, blockers, decisions]
+- Plan maintenance: [T-XX completed / added / abandoned / retried / failed / blocked] — [reason]
 "@
 
 $workflowDoc | Out-File $workflowPath -Encoding UTF8

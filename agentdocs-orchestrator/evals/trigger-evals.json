@@ -48,6 +48,10 @@
     "should_trigger": true
   },
   {
+    "query": "AI 做完任务后总忘记维护实施方案，请把 workflow 里的计划同步变成强制完成门禁。",
+    "should_trigger": true
+  },
+  {
     "query": "请修一下 `src/utils/date.ts` 里一个格式化 bug，应该就一两行。",
     "should_trigger": false
   },

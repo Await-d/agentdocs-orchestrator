@@ -42,6 +42,12 @@
       "prompt": "这个 full orchestration 任务已经完成了，帮我做收尾清理。注意不要误删其他 runtime，也不要删掉失败重试证据。",
       "expected_output": "Treats cleanup as a coordinator-only lifecycle action, separates archive readiness from final runtime cleanup, checks no task is running, verifies workflow/master_plan sync, final_output and memory sync decision, preserves retry/failure evidence, and targets only the exact current runtime path.",
       "files": []
+    },
+    {
+      "id": 8,
+      "prompt": "我发现 AI 做完任务后经常忘记维护 `.agentdocs/workflow` 里的实施方案。请优化这个 skill，让完成、失败、重试、新增任务和废弃任务都必须反映到实施计划里，不能只在最终回复里说完成。",
+      "expected_output": "Makes implementation-plan maintenance a completion gate: after progress, failure, retry, abandonment, blocked work, obsolete work, or discovered work, the workflow implementation plan and full-orchestration master_plan must be updated before reporting completion, with drift notes for added/removed/unplanned work.",
+      "files": []
     }
   ]
 }

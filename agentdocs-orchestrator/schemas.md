@@ -113,6 +113,10 @@ Required sections:
 `Plan Sync Confirmation` must say whether the coordinator has synced status.
 Workers may request sync, but they must not claim sync if they did not perform it.
 
+If execution reveals plan drift, the result file should include a requested plan
+maintenance note, for example: `Plan maintenance requested: add T-05 for cleanup
+blocker`.
+
 ## Final Output File
 
 Path: `.agentdocs/runtime/<task-id>/final_output.md`
@@ -127,3 +131,4 @@ Required sections:
 - `## Notes`
 
 The final output is the aggregation source for memory sync and cleanup decisions.
+It must reflect the maintained implementation plan, not the stale original plan.

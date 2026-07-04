@@ -38,7 +38,10 @@ Required checks:
 - task ids are unique
 - dependency references point to existing task ids
 - status values match `state-machine.md`
+- implementation plan maintenance follows `plan-maintenance-policy.md`
 - completed workflow TODOs have matching runtime rows in full orchestration mode
+- completed work is not absent from the implementation plan
+- pending tasks are not actually completed, obsolete, or blocked without notes
 - worker result files do not claim unsynced completion as final
 - cleanup readiness follows `cleanup-policy.md`
 
@@ -93,5 +96,7 @@ Before reporting completion without a CLI:
 - Run the equivalent lint checks by reading workflow and runtime files.
 - Confirm state transitions are valid.
 - Confirm workflow and master plan statuses agree.
+- Confirm the implementation plan reflects completed, failed, retried,
+  abandoned, newly discovered, obsolete, blocked, and unplanned work.
 - Confirm memory sync decision is recorded.
 - Confirm cleanup follows `cleanup-policy.md` and targets only the current runtime path.

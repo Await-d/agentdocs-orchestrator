@@ -219,11 +219,14 @@ status rows unless explicitly assigned.
 
 ### Phase 5️⃣ Status Sync, Memory Sync, and Cleanup
 
-1. Immediately update plan markers for every completed task:
+1. Immediately maintain the implementation plan for every completed, failed,
+   retried, abandoned, or newly discovered task (see
+   [plan-maintenance-policy.md](plan-maintenance-policy.md)):
    - Workflow TODOs (`- [x] T-01 ✅`)
    - Full orchestration only: matching `.agentdocs/runtime/<task-id>/master_plan.md` status rows
+   - Notes for drift, added tasks, removed tasks, blockers, or unplanned work
 2. In parallel runs, a coordinator may serialize shared file writes, but the workflow/master-plan sync must still happen before completion is reported
-3. Do not report a subtask or task as complete until those markers are synced
+3. Do not report a subtask, phase, or workflow as complete until the implementation plan reflects the actual work state
 4. Extract durable memory and append to `.agentdocs/index.md` (see Memory Protocol) — **do this before archiving**
 5. If all TODOs done: move workflow doc to `.agentdocs/workflow/done/`, update `index.md`
 6. **Full orchestration only:** Delete the runtime dir only after the final
@@ -382,11 +385,12 @@ All documents use the user's language:
 1. **Score before routing**: Record the written difficulty score before choosing any mode
 2. **Mode A preferred**: In OpenCode environments, use `task()` over CLI scripts
 3. **Status sync is part of completion**: Update workflow TODOs after each subtask completion; for full orchestration, sync `master_plan.md` in the same step
-4. **No unchecked completed tasks**: Never leave a finished task marked pending in the workflow doc or master plan
-5. **Coordinator owns shared state**: Workers write results; coordinators write workflow, master plan, archive, and cleanup changes
-6. **Index maintenance**: Register new workflows in `index.md`; remove when moved to `done/`
-7. **Protected cleanup**: Follow [cleanup-policy.md](cleanup-policy.md); delete only the current task runtime dir after archive readiness and final runtime cleanup gates pass
-8. **Chunked file creation**: Max 150 lines per write operation
+4. **Plan maintenance is a gate**: Follow [plan-maintenance-policy.md](plan-maintenance-policy.md); update completed, failed, retried, abandoned, newly discovered, obsolete, blocked, or unplanned tasks before reporting progress or completion
+5. **No unchecked completed tasks**: Never leave a finished task marked pending in the workflow doc or master plan
+6. **Coordinator owns shared state**: Workers write results; coordinators write workflow, master plan, archive, and cleanup changes
+7. **Index maintenance**: Register new workflows in `index.md`; remove when moved to `done/`
+8. **Protected cleanup**: Follow [cleanup-policy.md](cleanup-policy.md); delete only the current task runtime dir after archive readiness and final runtime cleanup gates pass
+9. **Chunked file creation**: Max 150 lines per write operation
 
 ---
 
@@ -441,6 +445,7 @@ Task isolation rule: only handle errors from the current task's runtime. Do not 
 - [state-machine.md](state-machine.md) — Canonical status values, transitions, retry, and archival rules
 - [schemas.md](schemas.md) — Required structured sections and metadata for workflow/runtime artifacts
 - [validation.md](validation.md) — Manual validation checklist and future `agentdocs` CLI command design
+- [plan-maintenance-policy.md](plan-maintenance-policy.md) — Required implementation-plan updates after progress, drift, failures, and completion
 - [cleanup-policy.md](cleanup-policy.md) — Protected cleanup gates for runtime, archival, orphan artifacts, and stale locks
 - [cli-integration.md](cli-integration.md) — Claude CLI Mode C integration
 - [examples.md](examples.md) — Practical usage examples (code review, translation, API testing, bug fix with TDD)

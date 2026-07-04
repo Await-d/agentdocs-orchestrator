@@ -22,6 +22,7 @@
 ### 4. 状态同步机制
 - **自动状态更新** - 任务完成后自动同步到工作流文档
 - **进度可视化** - 使用状态图标清晰展示任务进度
+- **实施方案维护** - 完成、失败、重试、废弃或新增任务后必须更新实施计划
 - **完成后归档** - 已完成任务自动移至归档目录
 
 ### 5. 可校验的编排契约
@@ -181,6 +182,7 @@ DAG 依赖:    T-01 ───→ T-03
 | [state-machine.md](agentdocs-orchestrator/state-machine.md) | 状态机契约（状态值、合法流转、失败重试、归档条件）|
 | [schemas.md](agentdocs-orchestrator/schemas.md) | workflow/runtime artifact 的结构化字段要求 |
 | [validation.md](agentdocs-orchestrator/validation.md) | 手动校验清单与未来 `agentdocs` CLI 设计 |
+| [plan-maintenance-policy.md](agentdocs-orchestrator/plan-maintenance-policy.md) | 实施方案维护策略（进度同步、计划漂移、补任务、废弃任务）|
 | [cleanup-policy.md](agentdocs-orchestrator/cleanup-policy.md) | 受保护清理策略（runtime 删除、证据保留、孤儿目录、stale lock）|
 | [cli-integration.md](agentdocs-orchestrator/cli-integration.md) | Claude CLI 深度集成（Mode C）|
 | [examples.md](agentdocs-orchestrator/examples.md) | 实际使用示例（代码审查、翻译、API 测试、TDD Bug 修复）|

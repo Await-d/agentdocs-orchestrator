@@ -42,6 +42,10 @@ A task is not `completed` until all of the following are true:
 - Output was reviewed or otherwise verified against the task acceptance criteria.
 - Workflow TODO marker is checked.
 - In full orchestration mode, the matching `master_plan.md` row is also updated.
+- The implementation plan has been maintained according to
+  [plan-maintenance-policy.md](plan-maintenance-policy.md), including drift notes
+  for failed, retried, abandoned, newly discovered, obsolete, blocked, or
+  unplanned work.
 - Dependent tasks were unblocked if their prerequisites are now satisfied.
 
 ## Failure and Retry Contract

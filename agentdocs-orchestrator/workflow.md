@@ -664,6 +664,7 @@ Before considering task complete:
 - [ ] All workflow TODOs marked as done
 - [ ] No completed task left unchecked in workflow doc
 - [ ] Full-orchestration `master_plan.md` statuses synced with workflow doc
+- [ ] Implementation plan reflects actual work, including failed, retried, abandoned, newly discovered, obsolete, blocked, or unplanned tasks
 - [ ] Workflow document moved to `done/` directory
 - [ ] Index.md updated (removed from current tasks)
 - [ ] Task runtime directory cleaned up (full orchestration only — skip for lightweight mode)
